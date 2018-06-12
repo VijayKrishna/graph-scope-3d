@@ -1,0 +1,65 @@
+body {
+    text-align: center;
+    font-family: Sans-serif;
+    margin: 0;
+}
+
+.graph-data {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    padding: 5px;
+}
+
+.toggle-data-btn {
+    cursor: pointer;
+    opacity: 0.85;
+}
+
+.toggle-data-btn:hover {
+    opacity: 1;
+}
+
+#graph-data-description {
+    font-size: 12px;
+    color: slategrey;
+}
+
+.btn {
+    cursor: pointer;
+    font-size: 20px; 
+    border: 2px; 
+    margin: 0px;
+    border-radius: 45%; 
+    -moz-border-radius: 45%;
+    -webkit-border-radius: 45%;
+}
+
+.unicorn {
+    background-color: #dccaf0;
+}
+.unicorn::after {
+    content:"\01F984";
+}
+
+.paint {
+    background: #fdcfa4;
+}
+.paint::after {
+    content:"\01F3A8";
+}
+
+.small-btn {
+    width: 50px !important;
+    height: 25px !important;
+}
+
+.medium-btn {
+    width: 70px !important;
+    height: 30px !important;
+}
+
+.big-btn {
+    width: 90px !important;
+    height: 40px !important;
+}
