@@ -14,10 +14,13 @@
 
 <body>
     <div class="graph-data">
-        <span id="graph-data-description"></span>
-        <button class="toggle-data-btn" onClick="toggleData()">Show me something else</button>
-        <button class="btn paint" onClick="resetColor2()"></button>
-        <!-- &#129412; -->
+        <!-- <span id="graph-data-description"></span> -->
+        <button class="btn dizzy" onClick="toggleData()" title="Refresh"></button>
+        <button class="btn paint" onClick="resetColor()" title="Recolor Background"></button>
+        <button class="btn coloredeightball" onClick="colorNodes()" title="Recolor Nodes"></button>
+        <button class="btn eightball" onClick="toggleNodes()" title="Recolor Nodes"></button>
+        <button class="btn coloredlink" onClick="recolorEdges()" title="Recolor Edges"></button>
+        <button class="btn link" onClick="toggleEdges()" title="Toggle Edges"></button>
     </div>
     
     <div id="3d-graph"></div>

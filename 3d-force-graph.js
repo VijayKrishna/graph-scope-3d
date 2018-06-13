@@ -5,7 +5,12 @@ function ForceGraph3D() {
 	const env = { // Holds component state
 		initialised: false,
 		onFrame: () => {},
-		bkgColor: 0x111111
+		bkgColor: 0x111111,
+		edgeColor: 0xFF00FF,
+		graph: null,
+		lineMaterial: null,
+		edgesVisible: true,
+		nodesVisible: true
 	};
 
 	function updateBackgroundColor(color) {
@@ -108,6 +113,8 @@ function ForceGraph3D() {
 			graph.addLink(...link, {});
 		}
 
+		env.graph = graph;
+
 		// console.log('graph from 3d-force-graph', graph);
 
 		// Add WebGL objects
@@ -128,22 +135,32 @@ function ForceGraph3D() {
 			env.scene.add(node.data.sphere = sphere);
 		});
 
-		var material = new THREE.LineBasicMaterial({
-			// color: 0x115511,
-			color: 0xffff00,
+		env.lineMaterial = new THREE.LineBasicMaterial({
+			color: env.edgeColor,
 			transparent: true,
 			linewidth: 1,
 			opacity: 0.2
 		});
 
-		var redmaterial = new THREE.LineBasicMaterial({
-			color: 0xff0000,
-			transparent: true,
-			linewidth: 3,
-			opacity: 0.5
-		});
+		drawEdges(graph);
 
-		var spline = true;
+		env.camera.lookAt(env.scene.position);
+		env.camera.position.z = Math.cbrt(Object.keys(env.graphData.nodes).length) * CAMERA_DISTANCE2NODES_FACTOR;
+
+		function recolorCanvas() {
+			env.renderer.setClearColor(env.bkgColor, 1);
+		}
+
+		function resizeCanvas() {
+			if (env.width && env.height) {
+				env.renderer.setSize(env.width, env.height);
+				env.camera.aspect = env.width/env.height;
+				env.camera.updateProjectionMatrix();
+			}
+		}
+	}
+
+	function drawEdges(graph, spline = true) {
 
 		graph.forEachLink(link => {
 			var geometry;
@@ -172,24 +189,9 @@ function ForceGraph3D() {
 				);				
 			}
 
-			var line = new THREE.Line( geometry, material );
+			var line = new THREE.Line( geometry, env.lineMaterial );
 			env.scene.add( link.data.line = line );
 		});
-
-		env.camera.lookAt(env.scene.position);
-		env.camera.position.z = Math.cbrt(Object.keys(env.graphData.nodes).length) * CAMERA_DISTANCE2NODES_FACTOR;
-
-		function recolorCanvas() {
-			env.renderer.setClearColor(env.bkgColor, 1);
-		}
-
-		function resizeCanvas() {
-			if (env.width && env.height) {
-				env.renderer.setSize(env.width, env.height);
-				env.camera.aspect = env.width/env.height;
-				env.camera.updateProjectionMatrix();
-			}
-		}
 	}
 
 	// Component constructor
@@ -262,6 +264,47 @@ function ForceGraph3D() {
 	chart.bkgColor = function(hexColor) {
 		env.bkgColor = hexColor;
 		env.renderer.setClearColor(env.bkgColor, 1);
+	}
+
+	chart.nodeColor = function(hexColor) {
+		// env.edgeColor = hexColor;
+		env.graph.forEachNode(node => {
+			node.data.sphere.material.setValues({
+				color: hexColor
+			});
+		});
+	}
+
+	chart.edgeColor = function(hexColor) {
+		env.edgeColor = hexColor;
+		env.graph.forEachLink(link => {
+			link.data.line.material.setValues({
+				opacity: 0.1,
+				transparent: true,
+				color: env.edgeColor
+			});
+		});
+	}
+
+
+	chart.toggleEdges = function() {
+		var isVisible = env.edgesVisible;
+		env.edgesVisible = !isVisible;
+		env.graph.forEachLink(link => {
+			link.data.line.material.setValues({
+				visible: env.edgesVisible,
+			});
+		});
+	}
+
+	chart.toggleNodes = function() {
+		var isVisible = env.nodesVisible;
+		env.nodesVisible = !isVisible;
+		env.graph.forEachNode(node => {
+			node.data.sphere.material.setValues({
+				visible: env.nodesVisible,
+			});
+		});
 	}
 
 	return chart;

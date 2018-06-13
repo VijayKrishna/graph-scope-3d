@@ -17,9 +17,24 @@ let toggleData;
 })(); // IIFE init
 
 function resetColor() {
-	Graph.bkgColor(0xDCCAF0);
+	var color = parseInt((Math.random()*0xFFFFFF<<0).toString(16), 16);
+	Graph.bkgColor(color);
 }
 
-function resetColor2() {
-	Graph.bkgColor(0xfdcfa4);
+function recolorEdges() {
+	var color = parseInt((Math.random()*0xFFFFFF<<0).toString(16), 16);
+	Graph.edgeColor(color);
+}
+
+function toggleEdges() {
+	Graph.toggleEdges();
+}
+
+function colorNodes() {
+	var color = parseInt((Math.random()*0xFFFFFF<<0).toString(16), 16);
+	Graph.nodeColor(color);
+}
+
+function toggleNodes() {
+	Graph.toggleNodes();
 }

@@ -11,15 +11,6 @@ body {
     padding: 5px;
 }
 
-.toggle-data-btn {
-    cursor: pointer;
-    opacity: 0.85;
-}
-
-.toggle-data-btn:hover {
-    opacity: 1;
-}
-
 #graph-data-description {
     font-size: 12px;
     color: slategrey;
@@ -30,9 +21,12 @@ body {
     font-size: 20px; 
     border: 2px; 
     margin: 0px;
-    border-radius: 45%; 
-    -moz-border-radius: 45%;
-    -webkit-border-radius: 45%;
+    border-radius: 50%; 
+    -moz-border-radius: 50%;
+    -webkit-border-radius: 50%;
+    width: 36px !important;
+    height: 36px !important;
+    text-align: center;
 }
 
 .unicorn {
@@ -47,6 +41,43 @@ body {
 }
 .paint::after {
     content:"\01F3A8";
+}
+
+.link {
+    background: aliceblue;
+}
+.link::after {
+    content:"\0026D3"
+}
+
+.coloredlink {
+    background: rgb(5, 110, 202);
+}
+.coloredlink::after {
+    content:"\0026D3"
+}
+
+.eightball {
+    background: aliceblue;
+}
+.eightball::after {
+    content:"\01F3B1"
+}
+
+.coloredeightball {
+    background: rgb(5, 110, 202);
+}
+.coloredeightball::after {
+    content:"\01F3B1"
+}
+
+.dizzy {
+    background: aliceblue;
+}
+.dizzy::after {
+    /* content:"\01F5B8" */
+    content:"\0021BB"
+    /* content:"\01F4AB" */
 }
 
 .small-btn {
