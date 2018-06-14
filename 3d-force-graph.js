@@ -180,7 +180,7 @@ function ForceGraph3D() {
 				// curve.curveType = "chordal";
 
 				var points = curve.getPoints( 50 );
-				geometry = new THREE.BufferGeometry().setFromPoints( points );				
+				geometry = new THREE.BufferGeometry().setFromPoints( points );
 			} else {
 				geometry = new THREE.Geometry();
 				geometry.vertices.push(
@@ -270,7 +270,8 @@ function ForceGraph3D() {
 		// env.edgeColor = hexColor;
 		env.graph.forEachNode(node => {
 			node.data.sphere.material.setValues({
-				color: hexColor
+				color: hexColor,
+				transparent: false
 			});
 		});
 	}
@@ -304,6 +305,69 @@ function ForceGraph3D() {
 			node.data.sphere.material.setValues({
 				visible: env.nodesVisible,
 			});
+		});
+	}
+
+	chart.flow = function(hexColor) {
+		var nodeCount = env.graphData.nodeCount;
+		var startColor = new THREE.Color(hexColor);
+		var endColor = new THREE.Color(); // defaults to white
+		var diffColor = new THREE.Color((endColor.r - startColor.r)/nodeCount,
+										(endColor.g - startColor.g)/nodeCount,
+										(endColor.b - startColor.b)/nodeCount);
+
+		var i = 0;
+		env.graph.forEachNode(node => {
+			var nextR = startColor.r + (i * diffColor.r);
+			var nextG = startColor.g + (i * diffColor.g);
+			var nextB = startColor.b + (i * diffColor.b);
+			var nextColor = new THREE.Color(nextR, nextG, nextB);
+
+			node.data.sphere.material.setValues({
+				color: nextColor,
+				transparent: false
+			});
+
+			i += 1;
+		});
+
+		env.graph.forEachLink(link => {
+			var fromNode = env.graph.getNode(link.fromId);
+			var toNode = env.graph.getNode(link.toId);
+
+			var fromColor = fromNode.data.sphere.material.color;
+			var fromOpacity = fromNode.data.sphere.material.opacity;
+			var toColor = toNode.data.sphere.material.color;
+
+			var colors = [];
+			for (var i = 0; i < 25; i += 1) {
+				colors.push(fromColor.r);
+				colors.push(fromColor.g);
+				colors.push(fromColor.b);
+			}
+			for (var i = 0; i < 25; i += 1) {
+				colors.push(toColor.r);
+				colors.push(toColor.g);
+				colors.push(toColor.b);
+			}
+
+			var line = link.data.line;
+			var newMaterial = new THREE.LineBasicMaterial({
+				// vertexColors: THREE.VertexColors,
+				color: fromColor.getHex(),
+				transparent: true,
+				linewidth: 1,
+				opacity: fromOpacity/6,
+				// needsUpdate: true
+			});
+
+			link.data.line.material = newMaterial;
+
+			var lineGeometry = line.geometry;
+			lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+			lineGeometry.colorsNeedUpdate = true
+
+
 		});
 	}
 

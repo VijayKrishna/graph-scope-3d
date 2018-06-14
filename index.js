@@ -13,7 +13,7 @@ let toggleData;
 	const dataSet = dataSets[curDataSetIdx];
 
 	dataSet(Graph); // Load data set
-	document.getElementById('graph-data-description').innerHTML = dataSet.description ? `Viewing ${dataSet.description}` : '';
+	// document.getElementById('graph-data-description').innerHTML = dataSet.description ? `Viewing ${dataSet.description}` : '';
 })(); // IIFE init
 
 function resetColor() {
@@ -37,4 +37,9 @@ function colorNodes() {
 
 function toggleNodes() {
 	Graph.toggleNodes();
+}
+
+function cascaseNodes() {
+	var color = parseInt((Math.random()*0xFFFFFF<<0).toString(16), 16);
+	Graph.flow(color);
 }

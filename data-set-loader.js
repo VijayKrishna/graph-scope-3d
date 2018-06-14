@@ -23,27 +23,31 @@ function getGraphDataSets() {
         const data = function(Graph) {
             qwest.get(params.json).then((_, data) => {
                 const nodes = {};
+
+                var nodeCount = 0;
     
                 // add an id property and
                 // Index by name
-                data.nodes.forEach((node, i) => { 
-                    console.log(node);
+                data.nodes.forEach((node, i) => {
+                    // console.log(node);
                     node.id = i;//node.id;
     
                     node.groupLabel =  node.label;
                     node.group = 1; // Number(node.group.split(' ')[1]) || 0;
                     nodes[node.id] = node;
+                    nodeCount += 1;
                 });
     
-                console.log('data from loadGroups', data);
-                console.log('nodes from loadGroups', nodes);
+                // console.log('data from loadGroups', data);
+                // console.log('nodes from loadGroups', nodes);
     
                 Graph
                     .resetState()
                     .colorAccessor(node => parseInt(colors[node.colorGroup%colors.length].slice(1),16))
                     .graphData({
                         nodes: nodes,
-                        links: data.links.map(link => [link.startId-1, link.endId-1])
+                        links: data.links.map(link => [link.startId-1, link.endId-1]),
+                        nodeCount: nodeCount
                     })
                     .bkgColor(params.color);
             });

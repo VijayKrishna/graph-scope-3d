@@ -80,6 +80,13 @@ body {
     /* content:"\01F4AB" */
 }
 
+.wave {
+    background: rgb(2, 41, 75);
+}
+.wave::after {
+    content:"\01F30A";
+}
+
 .small-btn {
     width: 50px !important;
     height: 25px !important;
