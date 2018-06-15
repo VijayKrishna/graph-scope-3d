@@ -1,4 +1,30 @@
-function ForceGraph3D() {
+function assert(condition = true, message = "Unknown Assert") {
+	if (typeof(condition) != "boolean") {
+		throw "Can use assert only with boolean values";
+	}
+
+	if (!condition) {
+		throw message;
+	}
+}
+
+class Partite {
+	constructor(name, memberCount, membershipChecker) {
+		this.name = name;
+		this.memberCount = memberCount;
+		this.membershipChecker = membershipChecker;
+	}
+
+	isMember(a) {
+		return this.membershipChecker(a);
+	}
+
+	incMemberCount() {
+		this.memberCount += 1;
+	}
+}
+
+function Graph3D() {
 
 	const CAMERA_DISTANCE2NODES_FACTOR = 150;
 
@@ -309,6 +335,7 @@ function ForceGraph3D() {
 	}
 
 	chart.flow = function(hexColor) {
+		env.edgesVisible = true;
 		var nodeCount = env.graphData.nodeCount;
 		var startColor = new THREE.Color(hexColor);
 		var endColor = new THREE.Color(); // defaults to white
@@ -353,7 +380,6 @@ function ForceGraph3D() {
 
 			var line = link.data.line;
 			var newMaterial = new THREE.LineBasicMaterial({
-				// vertexColors: THREE.VertexColors,
 				color: fromColor.getHex(),
 				transparent: true,
 				linewidth: 1,
@@ -368,6 +394,70 @@ function ForceGraph3D() {
 			lineGeometry.colorsNeedUpdate = true
 
 
+		});
+	}
+
+	chart.computePartites = function() {
+		var membershipCheckerGenerator = function(i) {
+			assert(typeof(i) === "number", "Need number to check against Z co-ordinate");
+			assert(i >= 0, "Need positive number to check against Z co-ordinate");
+
+			return function(a) {
+				assert(a.hasOwnProperty('z'), "Need Z co-ordinate property to check.");
+				return a.z === i;
+			};
+		}
+
+		var partites = [];
+		var knownZcoordinates = [];
+
+		env.graph.forEachNode( node => {
+			var z = node.data.sphere.position.z;
+			var index = knownZcoordinates.indexOf(z);
+			if (index === -1) {
+				var partite = new Partite("Level " + partites.length, 1, membershipCheckerGenerator(z));
+				knownZcoordinates.push(z);
+				partites.push(partite);
+			} else {
+				var p = partites[index];
+				p.incMemberCount();
+			}
+		});
+
+		return partites;
+
+	}
+
+	chart.togglePartiteEdges = function() {
+		var isVisible = env.edgesVisible;
+		env.edgesVisible = !isVisible;
+
+		env.graph.forEachLink(link => {
+			var fromNode = env.graph.getNode(link.fromId);
+			var toNode = env.graph.getNode(link.toId);
+
+			var fromZ = fromNode.data.sphere.position.z;
+			var toZ = toNode.data.sphere.position.z;
+
+			if (fromZ != toZ) {
+				var material = link.data.line.material;
+				link.data.line.material = new THREE.LineBasicMaterial({
+					color: material.color,
+					transparent: material.transparent,
+					linewidth: material.linewidth,
+					opacity: material.opacity,
+					visible: env.edgesVisible
+				});
+			} else {
+				var material = link.data.line.material;
+				link.data.line.material = new THREE.LineBasicMaterial({
+					color: material.color,
+					transparent: material.transparent,
+					linewidth: material.linewidth,
+					opacity: material.opacity,
+					visible: true
+				});
+			}
 		});
 	}
 

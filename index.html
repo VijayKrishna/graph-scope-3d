@@ -6,9 +6,9 @@
     <script src="js/libs/papaparse.min.js"></script> <!-- 4.1.4 -->
 
     <script src="data-set-loader.js"></script>
-    <script src="3d-force-graph.js"></script>
+    <script src="3d-graph.js"></script>
 
-    <link rel="stylesheet" href="3d-force-graph.css">
+    <link rel="stylesheet" href="3d-graph.css">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -20,10 +20,15 @@
         <button class="btn paint" onClick="resetColor()" title="Recolor Background"></button>
         <button class="btn coloredeightball" onClick="colorNodes()" title="Recolor Nodes"></button>
         <button class="btn eightball" onClick="toggleNodes()" title="Toggle Nodes"></button>
-        <button class="btn coloredlink" onClick="recolorEdges()" title="Recolor Edges"></button>
-        <button class="btn link" onClick="toggleEdges()" title="Toggle Edges"></button>
+        <button class="btn coloredlinks" onClick="recolorEdges()" title="Recolor Edges"></button>
+        <button class="btn links" onClick="toggleEdges()" title="Toggle Edges"></button>
+        <button class="btn link" onClick="togglePartiteEdges()" title="Toggle Edges Across Levels"></button>
     </div>
-    
+
+    <div id="graph-info-panel" class="graph-info-panel"></div>
+    <div id="control-info-panel" class="control-info-panel"><p>Something is terribly wrong. :(</p></div>
     <div id="3d-graph"></div>
+
     <script src="index.js"></script>
+    
 </body>

@@ -20,7 +20,7 @@ function getGraphDataSets() {
     ];
 
     const dataFuntion = function(params) {
-        const data = function(Graph) {
+        const data = function(Graph, dataLoadCompleteCallback) {
             qwest.get(params.json).then((_, data) => {
                 const nodes = {};
 
@@ -50,6 +50,7 @@ function getGraphDataSets() {
                         nodeCount: nodeCount
                     })
                     .bkgColor(params.color);
+                dataLoadCompleteCallback();
             });
         };
         data.description = params.desc;

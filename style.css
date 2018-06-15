@@ -43,17 +43,24 @@ body {
     content:"\01F3A8";
 }
 
+.links {
+    background: aliceblue;
+}
+.links::after {
+    content:"\0026D3"
+}
+
 .link {
     background: aliceblue;
 }
 .link::after {
-    content:"\0026D3"
+    content: "\01F517";
 }
 
-.coloredlink {
+.coloredlinks {
     background: rgb(5, 110, 202);
 }
-.coloredlink::after {
+.coloredlinks::after {
     content:"\0026D3"
 }
 
