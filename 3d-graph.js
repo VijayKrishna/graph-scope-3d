@@ -161,13 +161,6 @@ function Graph3D() {
 			env.scene.add(node.data.sphere = sphere);
 		});
 
-		env.lineMaterial = new THREE.LineBasicMaterial({
-			color: env.edgeColor,
-			transparent: true,
-			linewidth: 1,
-			opacity: 0.2
-		});
-
 		drawEdges(graph);
 
 		env.camera.lookAt(env.scene.position);
@@ -187,26 +180,73 @@ function Graph3D() {
 	}
 
 	function drawEdges(graph, spline = true) {
+		env.lineMaterial = new THREE.LineBasicMaterial({
+			color: env.edgeColor,
+			transparent: true,
+			linewidth: 1,
+			opacity: 0.2
+		});
 
 		graph.forEachLink(link => {
 			var geometry;
-			var fromNode = env.graphData.nodes[link.fromId];
-			var toNode = env.graphData.nodes[link.toId];
+			var fromNode = env.graph.getNode(link.fromId);
+			var toNode = env.graph.getNode(link.toId);
 
 			if (spline) {
-				var dx = (toNode.x - fromNode.x);
-				var dy = (toNode.y - fromNode.y);
-				var dz = (toNode.z - fromNode.z);
+				var dx = (toNode.data.sphere.position.x - fromNode.data.sphere.position.x);
+				var dy = (toNode.data.sphere.position.y - fromNode.data.sphere.position.y);
+				var dz = (toNode.data.sphere.position.z - fromNode.data.sphere.position.z);
 
-				var from = new THREE.Vector3( fromNode.x, fromNode.y, fromNode.z );
-				var contorl = new THREE.Vector3(fromNode.x + (dx * 0.25), fromNode.y + (dy * 0.9), fromNode.z + (dz * 0.5) );
-				var to = new THREE.Vector3( toNode.x, toNode.y, toNode.z );
+				var from = new THREE.Vector3( 
+						fromNode.data.sphere.position.x, 
+						fromNode.data.sphere.position.y, 
+						fromNode.data.sphere.position.z );
+
+				var contorl = new THREE.Vector3(
+								fromNode.data.sphere.position.x + (dx * 0.25), 
+								fromNode.data.sphere.position.y + (dy * 0.9), 
+								fromNode.data.sphere.position.z + (dz * 0.5) );
+
+				var to = new THREE.Vector3( 
+						toNode.data.sphere.position.x, 
+						toNode.data.sphere.position.y, 
+						toNode.data.sphere.position.z );
 
 				var curve = new THREE.CatmullRomCurve3( [from, contorl, to] );
 				// curve.curveType = "chordal";
 
-				var points = curve.getPoints( 50 );
-				geometry = new THREE.BufferGeometry().setFromPoints( points );
+				var pointCount = 51;
+				var points = curve.getPoints( pointCount - 1 );
+				var positions = [];
+				for (var i = 0; i < points.length; i += 1) {
+					var p = points[i];
+					positions.push(p.x);
+					positions.push(p.y);
+					positions.push(p.z);
+				}
+
+				geometry = new THREE.BufferGeometry(); // .setFromPoints( points );
+				var fromColor = fromNode.data.sphere.material.color;
+				var toColor = toNode.data.sphere.material.color;
+				var stepColor = {
+					r: (toColor.r - fromColor.r)/pointCount,
+					g: (toColor.g - fromColor.g)/pointCount,
+					b: (toColor.b - fromColor.b)/pointCount
+				};
+
+				var colors = [];
+				for (var i = 0; i < pointCount; i += 1) {
+					colors.push(fromColor.r + (i * stepColor.r));
+					colors.push(fromColor.g + (i * stepColor.g));
+					colors.push(fromColor.b + (i * stepColor.b));
+				}
+
+				var bufferedPositions = new THREE.Float32BufferAttribute( positions, 3 );
+				geometry.addAttribute( 'position',  bufferedPositions);
+				geometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+				geometry.computeBoundingSphere();
+				// geometry.colorsNeedUpdate = true;
+
 			} else {
 				geometry = new THREE.Geometry();
 				geometry.vertices.push(
@@ -215,8 +255,19 @@ function Graph3D() {
 				);				
 			}
 
-			var line = new THREE.Line( geometry, env.lineMaterial );
+			var newMaterial = new THREE.LineBasicMaterial({
+				// color: env.edgeColor,
+				vertexColors: true,
+				transparent: true,
+				linewidth: 1,
+				opacity: 0.25,
+				// needsUpdate: true
+			});
+
+			var line = new THREE.Line( geometry, newMaterial );
 			env.scene.add( link.data.line = line );
+
+
 		});
 	}
 
@@ -313,7 +364,6 @@ function Graph3D() {
 		});
 	}
 
-
 	chart.toggleEdges = function() {
 		var isVisible = env.edgesVisible;
 		env.edgesVisible = !isVisible;
@@ -367,23 +417,39 @@ function Graph3D() {
 			var toColor = toNode.data.sphere.material.color;
 
 			var colors = [];
-			for (var i = 0; i < 25; i += 1) {
-				colors.push(fromColor.r);
-				colors.push(fromColor.g);
-				colors.push(fromColor.b);
-			}
-			for (var i = 0; i < 25; i += 1) {
-				colors.push(toColor.r);
-				colors.push(toColor.g);
-				colors.push(toColor.b);
+			// for (var i = 0; i < 25; i += 1) {
+			// 	colors.push(fromColor.r);
+			// 	colors.push(fromColor.g);
+			// 	colors.push(fromColor.b);
+			// }
+			// for (var i = 0; i < 26; i += 1) {
+			// 	colors.push(toColor.r);
+			// 	colors.push(toColor.g);
+			// 	colors.push(toColor.b);
+			// }
+
+			var fromColor = fromNode.data.sphere.material.color;
+			var toColor = toNode.data.sphere.material.color;
+			var stepColor = {
+				r: (toColor.r - fromColor.r)/51,
+				g: (toColor.g - fromColor.g)/51,
+				b: (toColor.b - fromColor.b)/51
+			};
+
+			var colors = [];
+			for (var i = 0; i < 51; i += 1) {
+				colors.push(fromColor.r + (i * stepColor.r));
+				colors.push(fromColor.g + (i * stepColor.g));
+				colors.push(fromColor.b + (i * stepColor.b));
 			}
 
 			var line = link.data.line;
 			var newMaterial = new THREE.LineBasicMaterial({
-				color: fromColor.getHex(),
+				// color: fromColor.getHex(),
 				transparent: true,
 				linewidth: 1,
-				opacity: fromOpacity/6,
+				opacity: 0.1,
+				vertexColors: true,
 				// needsUpdate: true
 			});
 
@@ -392,8 +458,6 @@ function Graph3D() {
 			var lineGeometry = line.geometry;
 			lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
 			lineGeometry.colorsNeedUpdate = true
-
-
 		});
 	}
 
