@@ -359,7 +359,8 @@ function Graph3D() {
 			link.data.line.material.setValues({
 				opacity: 0.1,
 				transparent: true,
-				color: env.edgeColor
+				vertexColors: false,
+				color: env.edgeColor,
 			});
 		});
 	}
@@ -417,17 +418,6 @@ function Graph3D() {
 			var toColor = toNode.data.sphere.material.color;
 
 			var colors = [];
-			// for (var i = 0; i < 25; i += 1) {
-			// 	colors.push(fromColor.r);
-			// 	colors.push(fromColor.g);
-			// 	colors.push(fromColor.b);
-			// }
-			// for (var i = 0; i < 26; i += 1) {
-			// 	colors.push(toColor.r);
-			// 	colors.push(toColor.g);
-			// 	colors.push(toColor.b);
-			// }
-
 			var fromColor = fromNode.data.sphere.material.color;
 			var toColor = toNode.data.sphere.material.color;
 			var stepColor = {
@@ -506,6 +496,7 @@ function Graph3D() {
 			if (fromZ != toZ) {
 				var material = link.data.line.material;
 				link.data.line.material = new THREE.LineBasicMaterial({
+					vertexColors: false,
 					color: material.color,
 					transparent: material.transparent,
 					linewidth: material.linewidth,
@@ -515,6 +506,7 @@ function Graph3D() {
 			} else {
 				var material = link.data.line.material;
 				link.data.line.material = new THREE.LineBasicMaterial({
+					vertexColors: false,
 					color: material.color,
 					transparent: material.transparent,
 					linewidth: material.linewidth,
