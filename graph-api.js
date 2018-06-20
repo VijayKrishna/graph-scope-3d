@@ -82,8 +82,17 @@ class GraphApi {
         }, nodeIds);
     }
 
-    colorSomeNodes(nodeIds, colorFunction) {
+    changeOpacityForNodes(opacityFunction, nodeIds) {
+        if (!this.verify("enumerateNodes")
+            || !this.verify("changeNodeOpacity")) {
+            return;
+        }
 
+        var thisVisualGraph = this.visualGraph;
+        thisVisualGraph.enumerateNodes(function(node) {
+            const opacity = opacityFunction(node);
+            thisVisualGraph.changeNodeOpacity(node, opacity);
+        }, nodeIds);
     }
 
     resizeAllNodes(nodeSubset, sizeFunction) {

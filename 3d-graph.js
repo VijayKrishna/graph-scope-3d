@@ -361,6 +361,14 @@ function Graph3D() {
 		});
 	}
 
+	chart.changeNodeOpacity = function(nodeData, opacity = 1) {
+		const material = nodeData.sphere.material;
+		material.setValues({
+			opacity: opacity,
+			transparent: false
+		});
+	}
+
 	chart.enumerateNodes = function(callOnNode, nodeIds = null) {
 		if (nodeIds === null) {
 			env.graph.forEachNode(node => {
