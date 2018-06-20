@@ -8,29 +8,58 @@ class GraphApi {
         this.visualGraph = visualGraph;
     }
 
-    foo() {
-        console.log("doing something");
-        if (this.visualGraph) {
-            this.visualGraph.foo();
+    verify(propertyName = null) {
+        if (this.visualGraph != null) {
+            return true;
         }
-    }
 
-    // Real API methods
+        if (propertyName != null && this.visualGraph.hasOwnProperty(propertyName)) {
+            return true;
+        }
+
+        return false;
+    }
 
     colorBackground(color) {
+        if (!this.verify("bkgColor")) {
+            return;
+        }
 
+        this.visualGraph.bkgColor(color);
     }
 
-    hideEdges() {
-
+    toggleEdges(partites = false) {
+        if (partites) {
+            if (this.verify("togglePartiteEdges")) {
+                this.visualGraph.togglePartiteEdges();
+            }
+        } else {
+            if (this.verify("toggleEdges")) {
+                this.visualGraph.toggleEdges();
+            }
+        }
+        
     }
 
-    showEdges() {
+    toggleNodes() {
+        if (!this.verify("toggleNodes")) {
+            return;
+        }
 
+        this.visualGraph.toggleNodes();
     }
 
-    colorAllEdges(color) {
+    colorAllEdges(colorFunction) {
+        if (!this.verify("enumerateLinks")
+            || !this.verify("colorLink")) {
+            return;
+        }
 
+        var thisVisualGraph = this.visualGraph;
+        thisVisualGraph.enumerateLinks(function(link) {
+            const hexColor = colorFunction(link);
+            thisVisualGraph.colorLink(link, hexColor);
+        });
     }
 
     /*
@@ -40,19 +69,25 @@ class GraphApi {
         Mode2: function will auto-gen a color gradient, and distribute the nodeSubset across the color gradient
         Mode3a: heatmap, showing time lapse
     */
-    colorAllNodes(nodeSubset, colorFunction) {
-        // if (this.visualGraph === null) {
-        //     return;
-        // }
+    colorAllNodes(colorFunction, nodeIds) {
+        if (!this.verify("enumerateNodes")
+            || !this.verify("colorNode")) {
+            return;
+        }
 
-        // nodeSubset.forEach(nodeId => {
-        //     var node = this.visualGraph.getNode(nodeId);
-        //     colorFunction(node);
-        // });
+        var thisVisualGraph = this.visualGraph;
+        thisVisualGraph.enumerateNodes(function(node) {
+            const hexColor = colorFunction(node);
+            thisVisualGraph.colorNode(node, hexColor);
+        }, nodeIds);
+    }
+
+    colorSomeNodes(nodeIds, colorFunction) {
+
     }
 
     resizeAllNodes(nodeSubset, sizeFunction) {
-
+        // TODO
     }
 
     // TODO: support for free from search of nodes

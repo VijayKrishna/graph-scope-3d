@@ -6,6 +6,7 @@
     <script src="js/libs/papaparse.min.js"></script> <!-- 4.1.4 -->
 
     <script src="data-set-loader.js"></script>
+    <script src="graph-api.js"></script>
     <script src="3d-graph.js"></script>
 
     <link rel="stylesheet" href="3d-graph.css">
@@ -13,9 +14,8 @@
 </head>
 
 <body>
-    <div class="graph-data">
-        <!-- <span id="graph-data-description"></span> -->
-        <button class="btn dizzy" onClick="toggleData()" title="Refresh"></button>
+    <div class="graph-controls">
+        <button class="btn dizzy" onClick="roundRobinData()" title="Refresh"></button>
         <button class="btn wave" onClick="cascaseNodes()" title="Cascade"></button>
         <button class="btn paint" onClick="resetColor()" title="Recolor Background"></button>
         <button class="btn coloredeightball" onClick="colorNodes()" title="Recolor Nodes"></button>

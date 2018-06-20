@@ -353,15 +353,44 @@ function Graph3D() {
 		});
 	}
 
-	chart.edgeColor = function(hexColor) {
-		env.edgeColor = hexColor;
-		env.graph.forEachLink(link => {
-			link.data.line.material.setValues({
-				opacity: 0.1,
-				transparent: true,
-				vertexColors: false,
-				color: env.edgeColor,
+	chart.colorNode = function(nodeData, hexColor = 0x000000) {
+		const material = nodeData.sphere.material;
+		material.setValues({
+			color: hexColor,
+			transparent: false
+		});
+	}
+
+	chart.enumerateNodes = function(callOnNode, nodeIds = null) {
+		if (nodeIds === null) {
+			env.graph.forEachNode(node => {
+				callOnNode(node.data);
 			});
+			return;
+		}
+
+		nodeIds.forEach(function(id) {
+			const node = env.graph.getNode(id);
+			callOnNode(node.data);
+		});
+	}
+
+	chart.colorLink = function(linkData, hexColor = 0x000000) {
+		env.edgeColor = hexColor;
+		const material = linkData.line.material;
+		linkData.line.material  = new THREE.LineBasicMaterial({
+			vertexColors: false,
+			color: hexColor,
+			transparent: material.transparent,
+			linewidth: material.linewidth,
+			opacity: material.opacity,
+			visible: true
+		});
+	}
+
+	chart.enumerateLinks = function(callOnLink) {
+		env.graph.forEachLink(link => {
+			callOnLink(link.data);
 		});
 	}
 
@@ -386,7 +415,6 @@ function Graph3D() {
 	}
 
 	chart.flow = function(hexColor) {
-		env.edgesVisible = true;
 		var nodeCount = env.graphData.nodeCount;
 		var startColor = new THREE.Color(hexColor);
 		var endColor = new THREE.Color(); // defaults to white
