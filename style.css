@@ -94,6 +94,27 @@ body {
     content:"\01F30A";
 }
 
+.twocolorpill {
+    background: rgb(5, 110, 202);
+}
+.twocolorpill::after {
+    content:"\01F48A";
+}
+
+.uzumaki {
+    background: rgb(157, 221, 151);
+}
+.uzumaki::after {
+    content:"\01F300";
+}
+
+.timer {
+    background: rgb(255, 167, 53);
+}
+.timer::after {
+    content:"\0023F1";
+}
+
 .small-btn {
     width: 50px !important;
     height: 25px !important;

@@ -39,8 +39,25 @@ function Graph3D() {
 		nodesVisible: true
 	};
 
-	function updateBackgroundColor(color) {
-		env.renderer.setClearColor(color, 1);
+	function clickNode() {
+		env.raycaster.setFromCamera(env.mouse, env.camera);
+		const intersects = env.raycaster.intersectObjects(env.scene.children);
+
+		if (intersects.length <= 0) {
+			return;
+		}
+
+		for (var i = 0; i < intersects.length; i += 1) {
+			var object = intersects[0].object;
+			if (!object.hasOwnProperty("nodeId") || !object.hasOwnProperty("name"))
+				continue;
+			
+			if (object.nodeId >= 0) {
+				const node = env.graph.getNode(object.nodeId);
+				chart.colorNode(node.data, 0xff0000);
+				break;
+			}
+		}
 	}
 
 	function initStatic() {
@@ -84,6 +101,11 @@ function Graph3D() {
 				return { top: rect.top + scrollTop, left: rect.left + scrollLeft };
 			}
 		}, false);
+		env.domNode.addEventListener('click', clickNode);
+
+		// env.domNode.addEventListener("mouseup", ev => {
+
+		// });
 
 		// Setup camera
 		env.camera = new THREE.PerspectiveCamera();
@@ -103,6 +125,9 @@ function Graph3D() {
 		// Add camera interaction
 		env.controls = new THREE.TrackballControls(env.camera, env.renderer.domElement);
 		env.initialised = true;
+
+		// user interaction
+		// env.interaction = new THREE.Interaction(env.renderer, env.scene, env.camera);
 
 		// Kick-off renderer
 		(function animate() { // IIFE
@@ -153,10 +178,15 @@ function Graph3D() {
 				nodeMaterial
 			);
 
+			sphere.nodeId = node.data.id;
 			sphere.name = node.data.label;
 			sphere.position.x = node.data.x;
 			sphere.position.y = node.data.y;
 			sphere.position.z = node.data.z;
+
+			// sphere.on('click', function(ev) {
+			// 	console.log(node.data.id);
+			// });
 
 			env.scene.add(node.data.sphere = sphere);
 		});
@@ -396,6 +426,56 @@ function Graph3D() {
 		});
 	}
 
+	chart.timedShow = function() {
+		this.setVisibilityForEdges(false);
+		this.setVisibilityForNodes(false);
+		env.nodesVisible = true;
+
+		var timeslice = 4;
+		var i = 0;
+		env.graph.forEachLink(link => {
+
+			var fromNode = env.graph.getNode(link.fromId);
+			var toNode = env.graph.getNode(link.toId);
+			var fromVisibility = fromNode.data.sphere.material.visible;
+			var toVisibility = toNode.data.sphere.material.visible;
+
+			if (!fromVisibility) {
+				setTimeout(function() {
+					fromNode.data.sphere.material.setValues({
+						visible: true,
+					});
+				}, i);
+			}
+
+
+
+			var fromZ = fromNode.data.sphere.z;
+			var toZ = toNode.data.sphere.z;
+			if (fromZ != toZ) {
+				i += timeslice;
+			}
+
+			setTimeout(function() {
+				link.data.line.material.setValues({
+					visible: true,
+				});
+			}, i);
+
+			i += 2*timeslice;
+			
+			if (!toVisibility) {
+				setTimeout(function() {
+					toNode.data.sphere.material.setValues({
+						visible: true,
+					});
+				}, i);
+			}
+
+			i += timeslice;
+		});
+	}
+
 	chart.enumerateLinks = function(callOnLink) {
 		env.graph.forEachLink(link => {
 			callOnLink(link.data);
@@ -404,10 +484,14 @@ function Graph3D() {
 
 	chart.toggleEdges = function() {
 		var isVisible = env.edgesVisible;
-		env.edgesVisible = !isVisible;
+		chart.setVisibilityForEdges(!isVisible);
+	}
+
+	chart.setVisibilityForEdges = function(isVisible) {
+		env.edgesVisible = isVisible;
 		env.graph.forEachLink(link => {
 			link.data.line.material.setValues({
-				visible: env.edgesVisible,
+				visible: isVisible,
 			});
 		});
 	}
@@ -418,6 +502,15 @@ function Graph3D() {
 		env.graph.forEachNode(node => {
 			node.data.sphere.material.setValues({
 				visible: env.nodesVisible,
+			});
+		});
+	}
+
+	chart.setVisibilityForNodes = function(isVisible) {
+		env.edgesVisible = isVisible;
+		env.graph.forEachNode(node => {
+			node.data.sphere.material.setValues({
+				visible: isVisible,
 			});
 		});
 	}

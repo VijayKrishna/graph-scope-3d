@@ -70,13 +70,35 @@ function colorNodes() {
 		return color;
 	});
 
+	displayUserControlInfo("<p>Node color: #" + colorString.toUpperCase());
+}
+
+function colorNodeWithQuirks() {
+	toggleEdges();
+	var colorString = (0x555555).toString(16);
+	var color = parseInt(colorString, 16);
+	graphApi.colorAllNodes(function() {
+		return color;
+	});
+
+	var array = [];
+	var max = 0;
+	for (var i = 0; i < 340; i += 1) {
+		var element = i*2;
+		array.push(element);
+		if (max < element) {
+			max = element;
+		}
+	}
+
 	graphApi.colorAllNodes(function() {
 		return 0xff0000;
-	}, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+	}, array);
 
-	graphApi.changeOpacityForNodes(function() {
-		return 0.7;
-	}, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20])
+	graphApi.changeOpacityForNodes(function(node) {
+		var id = node.id;
+		return id/max;
+	}, array)
 
 	displayUserControlInfo("<p>Node color: #" + colorString.toUpperCase());
 }
@@ -103,4 +125,9 @@ function toggleNodes() {
 function togglePartiteEdges() {
 	graphApi.toggleEdges(true);
 	displayUserControlInfo("<p>Toggling edges across different levels, are we?</p>");
+}
+
+function timedShow() {
+	Graph.timedShow();
+	displayUserControlInfo("<p>Replay ;)</p>");
 }
