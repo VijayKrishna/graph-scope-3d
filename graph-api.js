@@ -95,6 +95,14 @@ class GraphApi {
         }, nodeIds);
     }
 
+    setClickNodeCallback(callback) {
+        this.visualGraph.setNodeCallback(callback);
+    }
+
+    diagnostics_getNode(nodeid) {
+        return this.visualGraph.diagnostics_getNode(nodeid);
+    }
+
     resizeAllNodes(nodeSubset, sizeFunction) {
         // TODO
     }

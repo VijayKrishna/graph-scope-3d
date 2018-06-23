@@ -41,6 +41,16 @@ let roundRobinData;
 	dataSet(Graph, displayGraphInfo); // Load data set
 })(); // IIFE init
 
+function nodeClickCallBack(nodeid) {
+	graphApi.colorAllNodes(function() {
+		return 0xff0000;
+	}, [nodeid]);
+
+	console.log(graphApi.diagnostics_getNode(nodeid));
+}
+
+graphApi.setClickNodeCallback(nodeClickCallBack);
+
 function resetColor() {
 	var colorString = (Math.random()*0xFFFFFF<<0).toString(16);
 	var color = parseInt(colorString, 16);

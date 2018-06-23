@@ -39,6 +39,10 @@ function Graph3D() {
 		nodesVisible: true
 	};
 
+	function printCamPos() {
+		console.log(env.camera);
+	}
+
 	function clickNode() {
 		env.raycaster.setFromCamera(env.mouse, env.camera);
 		const intersects = env.raycaster.intersectObjects(env.scene.children);
@@ -54,7 +58,9 @@ function Graph3D() {
 			
 			if (object.nodeId >= 0) {
 				const node = env.graph.getNode(object.nodeId);
-				chart.colorNode(node.data, 0xff0000);
+				if (chart._clickNodeCallback != null) {
+					chart._clickNodeCallback(node.data.id);
+				}
 				break;
 			}
 		}
@@ -103,14 +109,13 @@ function Graph3D() {
 		}, false);
 		env.domNode.addEventListener('click', clickNode);
 
-		// env.domNode.addEventListener("mouseup", ev => {
-
-		// });
-
 		// Setup camera
 		env.camera = new THREE.PerspectiveCamera();
-		env.camera.far = 30000;
-		env.camera.position.z = 1000;
+		env.camera.far = 15000;
+		env.camera.position.z = 2200;
+		env.camera.position.x = -1473;
+		env.camera.position.y = -300;
+		env.camera.zoom = 1.5;
 
 		// Setup scene
 		env.scene = new THREE.Scene();
@@ -125,9 +130,6 @@ function Graph3D() {
 		// Add camera interaction
 		env.controls = new THREE.TrackballControls(env.camera, env.renderer.domElement);
 		env.initialised = true;
-
-		// user interaction
-		// env.interaction = new THREE.Interaction(env.renderer, env.scene, env.camera);
 
 		// Kick-off renderer
 		(function animate() { // IIFE
@@ -183,10 +185,6 @@ function Graph3D() {
 			sphere.position.x = node.data.x;
 			sphere.position.y = node.data.y;
 			sphere.position.z = node.data.z;
-
-			// sphere.on('click', function(ev) {
-			// 	console.log(node.data.id);
-			// });
 
 			env.scene.add(node.data.sphere = sphere);
 		});
@@ -426,54 +424,105 @@ function Graph3D() {
 		});
 	}
 
+	chart._revealNodeAfterTime = function(node, millisecs) {
+		var nodeMaterial = node.data.sphere.material;
+		var isVisible = nodeMaterial.visible;
+		if (isVisible) {
+			return false;
+		}
+
+		setTimeout(function() {
+			nodeMaterial.setValues({
+				visible: true,
+			});
+		}, millisecs);
+
+		return true;
+	}
+
+	chart._revealLinkAfterTime = function(link, millisecs) {
+		var lineMaterial = link.data.line.material;
+		var isVisible = lineMaterial.visible;
+		if (isVisible) {
+			return false;
+		}
+
+		setTimeout(function() {
+			lineMaterial.setValues({
+				visible: true,
+			});
+		}, millisecs);
+
+		return true;
+	}
+
 	chart.timedShow = function() {
+		var thisChart = this;
 		this.setVisibilityForEdges(false);
 		this.setVisibilityForNodes(false);
 		env.nodesVisible = true;
 
 		var timeslice = 4;
-		var i = 0;
-		env.graph.forEachLink(link => {
+		var i = 10;
 
-			var fromNode = env.graph.getNode(link.fromId);
-			var toNode = env.graph.getNode(link.toId);
-			var fromVisibility = fromNode.data.sphere.material.visible;
-			var toVisibility = toNode.data.sphere.material.visible;
+		var visitedNodes = [];
+		var stack = [];
 
-			if (!fromVisibility) {
-				setTimeout(function() {
-					fromNode.data.sphere.material.setValues({
-						visible: true,
-					});
-				}, i);
+		stack.push(env.graph.getNode(0));
+
+		while(stack.length > 0) {
+			var node = stack.pop();
+
+			// console.log(node.id);
+			if (visitedNodes.indexOf(node.id) != -1) {
+				continue;
 			}
 
+			console.log("visiting " + node.id);
+			var nodeRevealed = thisChart._revealNodeAfterTime(node, i);
+			if(nodeRevealed) {
+				i = i + timeslice;
+			} 
 
+			var revealedAnything = false;
+			// revealedAnything = revealedAnything || nodeRevealed;
 
-			var fromZ = fromNode.data.sphere.z;
-			var toZ = toNode.data.sphere.z;
-			if (fromZ != toZ) {
-				i += timeslice;
+			var links = env.graph.getLinks(node.id);
+
+			for (var l = 0; l < links.length; l += 1) {
+				var link = links[l];
+
+				if (link.fromId != node.id) {
+					continue;
+				}
+
+				var linkRevealed = thisChart._revealLinkAfterTime(link, i);
+				if (linkRevealed) {
+					i += timeslice;
+				}
+
+				// revealedAnything = revealedAnything || linkRevealed;
+
+				var to = env.graph.getNode(link.toId);
+
+				console.log("going from " + node.id + " to " + to.id);
+
+				if (to === node)
+					continue;
+
+				if (visitedNodes.indexOf(to.id) === -1) { // plan on visiting only if you have not visited it before
+					stack.push(to);
+				}
+					
+				var anotherNodeRevealed = thisChart._revealNodeAfterTime(to, i);
+				if (anotherNodeRevealed) {
+					i += timeslice;
+				}
+				// revealedAnything = revealedAnything || anotherNodeRevealed;
 			}
 
-			setTimeout(function() {
-				link.data.line.material.setValues({
-					visible: true,
-				});
-			}, i);
-
-			i += 2*timeslice;
-			
-			if (!toVisibility) {
-				setTimeout(function() {
-					toNode.data.sphere.material.setValues({
-						visible: true,
-					});
-				}, i);
-			}
-
-			i += timeslice;
-		});
+			visitedNodes.push(node.id);
+		}
 	}
 
 	chart.enumerateLinks = function(callOnLink) {
@@ -646,5 +695,43 @@ function Graph3D() {
 		});
 	}
 
+
+	chart._clickNodeCallback = null;
+	chart.setNodeCallback = function(clickNodeCallback) {
+		chart._clickNodeCallback = clickNodeCallback;
+	}
+
+	chart.diagnostics_getNode = function(nodeid) {
+		var node = env.graph.getNode(nodeid);
+		return node.data;
+	}
+
 	return chart;
 }
+
+/*
+
+[Log] Object (index.js, line 49)
+
+@type: "self.vpalepu.layout.force.model.CarNode"
+
+colorGroup: 0
+
+community: null
+
+group: 1
+
+groupLabel: "763"
+
+id: 763
+
+label: "763"
+
+sphere: ta {id: 779, uuid: "3B3C393E-BA7E-4FEA-BF5C-1860779CB3F9", name: "763", type: "Mesh", parent: rd, …}
+
+x: -146.78766
+
+y: 77.65801
+
+z: 0
+*/

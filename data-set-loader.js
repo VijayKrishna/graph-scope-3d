@@ -17,6 +17,7 @@ function getGraphDataSets() {
         , new DataParams("data/one-m.json", "<em>Skinny 3D Force Directed Graph</em> data", 0x009970)
         , new DataParams("data/one-n.json", "<em>Stacked, 2D Skinny Force Directed Graphs</em> data", 0xffffff)
         , new DataParams("data/one-o.json", "<em>Stacked, 2D Balanced Force Directed Graphs</em> data", 0x111111)
+        , new DataParams("data/one-a.json", "<em>Stacked, 2D Balanced Force Directed Graphs</em> data", 0x111111)
     ];
 
     const dataFuntion = function(params) {
