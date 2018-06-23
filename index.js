@@ -8,6 +8,9 @@ var displayGraphInfo = function() {
 	// TODO: move computePartites to graphAPI
 	var partites = Graph.computePartites();
 
+	const diagnosisPanel = document.getElementById("diagnostic-info-panel");
+	diagnosisPanel.innerHTML = "Cick a node."
+
 	const graphpanel = document.getElementById("graph-info-panel");
 	graphpanel.innerHTML = '';
 	for (var i = 0; i < partites.length; i += 1) {
@@ -28,6 +31,22 @@ var displayUserControlInfo = function(html) {
 	graphpanel.innerHTML = html;
 }
 
+var displayDiagnosticInfo = function(thingsToDisplay) {
+	const diagnosisPanel = document.getElementById("diagnostic-info-panel");
+	diagnosisPanel.innerHTML = '';
+	var html = '';
+
+	for (var i = 0; i < thingsToDisplay.length; i += 1) {
+		var thing = thingsToDisplay[i];
+
+
+		const partiteInfo = document.createElement('p');
+		partiteInfo.innerHTML = thing[0] + ": " + thing[1];
+		diagnosisPanel.appendChild(partiteInfo);
+		diagnosisPanel.appendChild(document.createElement("b"));
+	}
+}
+
 let curDataSetIdx;
 const dataSets = getGraphDataSets();
 console.log('dataSets from index.js', dataSets);
@@ -42,11 +61,24 @@ let roundRobinData;
 })(); // IIFE init
 
 function nodeClickCallBack(nodeid) {
-	graphApi.colorAllNodes(function() {
-		return 0xff0000;
-	}, [nodeid]);
+	// graphApi.colorAllNodes(function() {
+	// 	return 0xff0000;
+	// }, [nodeid]);
 
-	console.log(graphApi.diagnostics_getNode(nodeid));
+	var node = graphApi.diagnostics_getNode(nodeid);
+	console.log(node);
+
+	var thingsToDisplay = [];
+	thingsToDisplay.push(
+		["x", node.x], 
+		["y", node.y], 
+		["z", node.z], 
+		["ID", node.id], 
+		["Label", node.label],
+		["Color", "#" + node.sphere.material.color.getHexString().toUpperCase()],
+	);
+
+	displayDiagnosticInfo(thingsToDisplay);
 }
 
 graphApi.setClickNodeCallback(nodeClickCallBack);
