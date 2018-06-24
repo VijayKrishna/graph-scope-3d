@@ -9,7 +9,7 @@ var displayGraphInfo = function() {
 	var partites = Graph.computePartites();
 
 	const diagnosisPanel = document.getElementById("diagnostic-info-panel");
-	diagnosisPanel.innerHTML = "Cick a node."
+	diagnosisPanel.innerHTML = "<p>Cick a node.</p>"
 
 	const graphpanel = document.getElementById("graph-info-panel");
 	graphpanel.innerHTML = '';
@@ -33,15 +33,14 @@ var displayUserControlInfo = function(html) {
 
 var displayDiagnosticInfo = function(thingsToDisplay) {
 	const diagnosisPanel = document.getElementById("diagnostic-info-panel");
-	diagnosisPanel.innerHTML = '';
-	var html = '';
+	diagnosisPanel.innerHTML = "<p>This is what you clicked last...</p><br/>";
 
 	for (var i = 0; i < thingsToDisplay.length; i += 1) {
 		var thing = thingsToDisplay[i];
 
 
 		const partiteInfo = document.createElement('p');
-		partiteInfo.innerHTML = thing[0] + ": " + thing[1];
+		partiteInfo.innerHTML = thing[0] + ((thing.length >= 3) ? thing[2] : " : ") + thing[1];
 		diagnosisPanel.appendChild(partiteInfo);
 		diagnosisPanel.appendChild(document.createElement("b"));
 	}
@@ -61,10 +60,6 @@ let roundRobinData;
 })(); // IIFE init
 
 function nodeClickCallBack(nodeid) {
-	// graphApi.colorAllNodes(function() {
-	// 	return 0xff0000;
-	// }, [nodeid]);
-
 	var node = graphApi.diagnostics_getNode(nodeid);
 	console.log(node);
 
@@ -78,7 +73,23 @@ function nodeClickCallBack(nodeid) {
 		["Color", "#" + node.sphere.material.color.getHexString().toUpperCase()],
 	);
 
+	var neighboringNodes = graphApi.diagnostics_getNeighboringNodes(nodeid);
+	thingsToDisplay.push(["incoming", "nodes:", " "]);
+
+	var incoming = neighboringNodes.incoming;
+	for (var i = 0; i < incoming.length; i += 1) {
+		thingsToDisplay.push([incoming[i], nodeid, " -> "]);
+	}
+
+	thingsToDisplay.push(["outgoing", "nodes:", " "]);
+	var outgoing = neighboringNodes.outgoing;
+	for (var i = 0; i < outgoing.length; i += 1) {
+		thingsToDisplay.push([nodeid, outgoing[i], " -> "]);
+	}
+
 	displayDiagnosticInfo(thingsToDisplay);
+
+	console.log();
 }
 
 graphApi.setClickNodeCallback(nodeClickCallBack);

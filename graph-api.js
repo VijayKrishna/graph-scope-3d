@@ -103,6 +103,10 @@ class GraphApi {
         return this.visualGraph.diagnostics_getNode(nodeid);
     }
 
+    diagnostics_getNeighboringNodes(nodeid) {
+        return this.visualGraph.diagnostics_getNeighboringNodes(nodeid);
+    }
+
     resizeAllNodes(nodeSubset, sizeFunction) {
         // TODO
     }

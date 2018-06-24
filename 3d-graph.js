@@ -115,7 +115,7 @@ function Graph3D() {
 		env.camera.position.z = 2200;
 		env.camera.position.x = -1473;
 		env.camera.position.y = -300;
-		env.camera.zoom = 1.5;
+		env.camera.zoom = 6;
 
 		// Setup scene
 		env.scene = new THREE.Scene();
@@ -253,9 +253,9 @@ function Graph3D() {
 					positions.push(p.z);
 				}
 
-				geometry = new THREE.BufferGeometry(); // .setFromPoints( points );
-				var fromColor = fromNode.data.sphere.material.color;
-				var toColor = toNode.data.sphere.material.color;
+				geometry = new THREE.BufferGeometry();
+				var fromColor = 0x999999; // fromNode.data.sphere.material.color;
+				var toColor = 0x999999; // toNode.data.sphere.material.color;
 				var stepColor = {
 					r: (toColor.r - fromColor.r)/pointCount,
 					g: (toColor.g - fromColor.g)/pointCount,
@@ -273,7 +273,6 @@ function Graph3D() {
 				geometry.addAttribute( 'position',  bufferedPositions);
 				geometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
 				geometry.computeBoundingSphere();
-				// geometry.colorsNeedUpdate = true;
 
 			} else {
 				geometry = new THREE.Geometry();
@@ -284,12 +283,10 @@ function Graph3D() {
 			}
 
 			var newMaterial = new THREE.LineBasicMaterial({
-				// color: env.edgeColor,
 				vertexColors: true,
 				transparent: true,
 				linewidth: 1,
-				opacity: 0.25,
-				// needsUpdate: true
+				opacity: 0.1
 			});
 
 			var line = new THREE.Line( geometry, newMaterial );
@@ -704,6 +701,28 @@ function Graph3D() {
 	chart.diagnostics_getNode = function(nodeid) {
 		var node = env.graph.getNode(nodeid);
 		return node.data;
+	}
+
+	chart.diagnostics_getNeighboringNodes = function(nodeid) {
+		var links = env.graph.getLinks(nodeid);
+		var incomingIds = [];
+		var outgoingIds = [];
+
+		for (var i = 0; i < links.length; i += 1) {
+			var link = links[i];
+			if (link.fromId === nodeid) {
+				outgoingIds.push(link.toId);
+			}
+
+			if (link.toId === nodeid) {
+				incomingIds.push(link.fromId);
+			}
+		}
+
+		return {
+			incoming : incomingIds,
+			outgoing : outgoingIds
+		}
 	}
 
 	return chart;
