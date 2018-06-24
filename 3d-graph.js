@@ -8,21 +8,49 @@ function assert(condition = true, message = "Unknown Assert") {
 	}
 }
 
+var partites = [];
 class Partite {
 	constructor(name, memberCount, membershipChecker) {
 		this.name = name;
 		this.memberCount = memberCount;
 		this.members = [];
 		this.membershipChecker = membershipChecker;
+		this.centeroid = new THREE.Vector3(0, 0, 0);
 	}
 
 	isMember(a) {
 		return this.membershipChecker(a);
 	}
 
-	addMember(m) {
+	addMember(m, x, y, z) {
+
+		if (this.memberCount === 0) {
+			this.centeroid.x = x;
+			this.centeroid.y = y;
+			this.centeroid.z = z;
+		} else {
+			this.centeroid.x = ((this.centeroid.x * this.memberCount) + x) / (this.memberCount + 1);
+			this.centeroid.y = ((this.centeroid.y * this.memberCount) + y) / (this.memberCount + 1);
+			this.centeroid.z = ((this.centeroid.z * this.memberCount) + z) / (this.memberCount + 1);
+		}
+
 		this.members.push(m);
 		this.memberCount += 1;
+	}
+
+	getCenteroid() {
+		return this.centeroid;
+	}
+
+	static getPartite(nodePosition) { // TODO yeah ... this is ugly. need to fix it.
+		for (var p = 0; p < partites.length; p += 1) {
+			var partite = partites[p];
+			if (partite.isMember(nodePosition)) {
+				return partite;
+			}
+		}
+
+		return null;
 	}
 }
 
@@ -217,33 +245,60 @@ function Graph3D() {
 			opacity: 0.2
 		});
 
+		chart.computePartites();
+
 		graph.forEachLink(link => {
 			var geometry;
 			var fromNode = env.graph.getNode(link.fromId);
 			var toNode = env.graph.getNode(link.toId);
 
 			if (spline) {
-				var dx = (toNode.data.sphere.position.x - fromNode.data.sphere.position.x);
-				var dy = (toNode.data.sphere.position.y - fromNode.data.sphere.position.y);
-				var dz = (toNode.data.sphere.position.z - fromNode.data.sphere.position.z);
-
 				var from = new THREE.Vector3( 
-						fromNode.data.sphere.position.x, 
-						fromNode.data.sphere.position.y, 
-						fromNode.data.sphere.position.z );
-
-				var contorl = new THREE.Vector3(
-								fromNode.data.sphere.position.x + (dx * 0.25), 
-								fromNode.data.sphere.position.y + (dy * 0.9), 
-								fromNode.data.sphere.position.z + (dz * 0.5) );
+					fromNode.data.sphere.position.x, 
+					fromNode.data.sphere.position.y, 
+					fromNode.data.sphere.position.z );
 
 				var to = new THREE.Vector3( 
-						toNode.data.sphere.position.x, 
-						toNode.data.sphere.position.y, 
-						toNode.data.sphere.position.z );
+					toNode.data.sphere.position.x, 
+					toNode.data.sphere.position.y, 
+					toNode.data.sphere.position.z );
 
-				var curve = new THREE.CatmullRomCurve3( [from, contorl, to] );
-				// curve.curveType = "chordal";
+				var dx = (to.x - from.x);
+				var dy = (to.y - from.y);
+				var dz = (to.z - from.z);
+
+				var curve = null;
+				if (from.z != to.z) {
+
+					var fromCenteroid;
+					var fromPartite = Partite.getPartite(from);
+					if (fromPartite != null) {
+						fromCenteroid = fromPartite.getCenteroid();
+						fromCenteroid.z = from.z + 25;
+					} else {
+						fromCenteroid = new THREE.Vector3(10, 10, from.z + 25);
+					}
+
+					var toCenteroid;
+					var toPartite = Partite.getPartite(to);
+					if (toPartite != null) {
+						toCenteroid = toPartite.getCenteroid();
+						toCenteroid.z = from.z + 100;
+					} else {
+						toCenteroid = new THREE.Vector3(10, 10, from.z + 100);
+					}
+
+					var yup2 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z);
+					var yup3 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z + 1);
+					var yup8 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z);
+					var yup9 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z + 1);
+					
+					curve = new THREE.CatmullRomCurve3( [from, yup2, yup3, yup8, yup9, to] );
+				} else {
+					curve = new THREE.CatmullRomCurve3( [from, to] );
+				}
+
+				curve.curveType = "chordal";
 
 				var pointCount = 51;
 				var points = curve.getPoints( pointCount - 1 );
@@ -623,20 +678,24 @@ function Graph3D() {
 			};
 		}
 
-		var partites = [];
-		var knownZcoordinates = [];
+		if (partites.length > 0) {
+			return partites;
+		}
 
+		var knownZcoordinates = [];
 		env.graph.forEachNode( node => {
+			var x = node.data.sphere.position.x;
+			var y = node.data.sphere.position.y;
 			var z = node.data.sphere.position.z;
 			var index = knownZcoordinates.indexOf(z);
 			if (index === -1) {
 				var partite = new Partite("Level " + partites.length, 0, membershipCheckerGenerator(z));
-				partite.addMember(node.data.id);
+				partite.addMember(node.data.id, x, y, z);
 				knownZcoordinates.push(z);
 				partites.push(partite);
 			} else {
 				var p = partites[index];
-				p.addMember(node.data.id);
+				p.addMember(node.data.id, x, y, z);
 			}
 		});
 
@@ -714,30 +773,3 @@ function Graph3D() {
 
 	return chart;
 }
-
-/*
-
-[Log] Object (index.js, line 49)
-
-@type: "self.vpalepu.layout.force.model.CarNode"
-
-colorGroup: 0
-
-community: null
-
-group: 1
-
-groupLabel: "763"
-
-id: 763
-
-label: "763"
-
-sphere: ta {id: 779, uuid: "3B3C393E-BA7E-4FEA-BF5C-1860779CB3F9", name: "763", type: "Mesh", parent: rd, …}
-
-x: -146.78766
-
-y: 77.65801
-
-z: 0
-*/
