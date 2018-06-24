@@ -254,25 +254,8 @@ function Graph3D() {
 				}
 
 				geometry = new THREE.BufferGeometry();
-				var fromColor = 0x999999; // fromNode.data.sphere.material.color;
-				var toColor = 0x999999; // toNode.data.sphere.material.color;
-				var stepColor = {
-					r: (toColor.r - fromColor.r)/pointCount,
-					g: (toColor.g - fromColor.g)/pointCount,
-					b: (toColor.b - fromColor.b)/pointCount
-				};
-
-				var colors = [];
-				for (var i = 0; i < pointCount; i += 1) {
-					colors.push(fromColor.r + (i * stepColor.r));
-					colors.push(fromColor.g + (i * stepColor.g));
-					colors.push(fromColor.b + (i * stepColor.b));
-				}
-
 				var bufferedPositions = new THREE.Float32BufferAttribute( positions, 3 );
 				geometry.addAttribute( 'position',  bufferedPositions);
-				geometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-				geometry.computeBoundingSphere();
 
 			} else {
 				geometry = new THREE.Geometry();
@@ -283,7 +266,8 @@ function Graph3D() {
 			}
 
 			var newMaterial = new THREE.LineBasicMaterial({
-				vertexColors: true,
+				color: 0x4066E5,
+				// vertexColors: true,
 				transparent: true,
 				linewidth: 1,
 				opacity: 0.1
