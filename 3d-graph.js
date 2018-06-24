@@ -12,6 +12,7 @@ class Partite {
 	constructor(name, memberCount, membershipChecker) {
 		this.name = name;
 		this.memberCount = memberCount;
+		this.members = [];
 		this.membershipChecker = membershipChecker;
 	}
 
@@ -19,7 +20,8 @@ class Partite {
 		return this.membershipChecker(a);
 	}
 
-	incMemberCount() {
+	addMember(m) {
+		this.members.push(m);
 		this.memberCount += 1;
 	}
 }
@@ -628,12 +630,13 @@ function Graph3D() {
 			var z = node.data.sphere.position.z;
 			var index = knownZcoordinates.indexOf(z);
 			if (index === -1) {
-				var partite = new Partite("Level " + partites.length, 1, membershipCheckerGenerator(z));
+				var partite = new Partite("Level " + partites.length, 0, membershipCheckerGenerator(z));
+				partite.addMember(node.data.id);
 				knownZcoordinates.push(z);
 				partites.push(partite);
 			} else {
 				var p = partites[index];
-				p.incMemberCount();
+				p.addMember(node.data.id);
 			}
 		});
 
