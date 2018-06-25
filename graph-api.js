@@ -99,10 +99,24 @@ class GraphApi {
         this.visualGraph.setNodeCallback(callback);
     }
 
+    /**
+     *
+     *
+     * @param {Number} nodeid
+     * @returns
+     * @memberof GraphApi
+     */
     diagnostics_getNode(nodeid) {
         return this.visualGraph.diagnostics_getNode(nodeid);
     }
 
+    /**
+     *
+     *
+     * @param {Number} nodeid
+     * @returns
+     * @memberof GraphApi
+     */
     diagnostics_getNeighboringNodes(nodeid) {
         return this.visualGraph.diagnostics_getNeighboringNodes(nodeid);
     }
