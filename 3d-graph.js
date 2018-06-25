@@ -73,11 +73,25 @@ function Graph3D() {
 		console.log(env.camera);
 	}
 
+	function registerNodesWithRaycaster() {
+		if (env.graph != null) {
+			var spheres = [];
+			env.graph.forEachNode(node => {
+				spheres.push(node.data.sphere);
+			});
+
+			var intersects = env.raycaster.intersectObjects(spheres);
+			return intersects;
+		}
+
+		return null;
+	}
+
 	function clickNode() {
 		env.raycaster.setFromCamera(env.mouse, env.camera);
-		const intersects = env.raycaster.intersectObjects(env.scene.children);
+		const intersects = registerNodesWithRaycaster();
 
-		if (intersects.length <= 0) {
+		if (intersects == null || intersects.length <= 0) {
 			return;
 		}
 
@@ -167,8 +181,9 @@ function Graph3D() {
 
 			// Update tooltip
 			env.raycaster.setFromCamera(env.mouse, env.camera);
-			const intersects = env.raycaster.intersectObjects(env.scene.children);
-			env.toolTipElem.innerHTML = intersects.length ? intersects[0].object.name || '' : '';
+			var intersects = registerNodesWithRaycaster();
+			env.toolTipElem.innerHTML = (intersects != null && intersects.length) ? intersects[0].object.name || '' : '';
+			
 
 			// Frame cycle
 			env.controls.update();
