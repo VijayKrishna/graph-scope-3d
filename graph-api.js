@@ -56,9 +56,9 @@ class GraphApi {
         }
 
         var thisVisualGraph = this.visualGraph;
-        thisVisualGraph.enumerateLinks(function(link) {
+        thisVisualGraph.enumerateLinks(function(link, i) {
             const hexColor = colorFunction(link);
-            thisVisualGraph.colorLink(link, hexColor);
+            thisVisualGraph.colorLink(link, i, hexColor);
         });
     }
 
@@ -119,6 +119,10 @@ class GraphApi {
      */
     diagnostics_getNeighboringNodes(nodeid) {
         return this.visualGraph.diagnostics_getNeighboringNodes(nodeid);
+    }
+
+    clearOverlays() {
+        this.visualGraph.clearOverlays();
     }
 
     resizeAllNodes(nodeSubset, sizeFunction) {

@@ -1,4 +1,6 @@
 var ZERO = new THREE.Vector2(0, 0);
+var envDebug = null;
+var pointCount = 51;
 
 function assert(condition = true, message = "Unknown Assert") {
 	if (typeof(condition) != "boolean") {
@@ -81,12 +83,13 @@ function Graph3D() {
 		initialised: false,
 		onFrame: () => {},
 		bkgColor: 0x111111,
-		edgeColor: 0xFF00FF,
+		edgeColor: 0x0077FF,
 		graph: null,
-		lineMaterial: null,
+		lineMesh: null,
 		edgesVisible: true,
 		nodesVisible: true
 	};
+	envDebug = env;
 
 	function printCamPos() {
 		console.log(env.camera);
@@ -234,12 +237,13 @@ function Graph3D() {
 		// console.log('graph from 3d-force-graph', graph);
 
 		// Add WebGL objects
+		var sphereGeometry = new THREE.SphereGeometry(2.5);
 		graph.forEachNode(node => {
 			const nodeMaterial = new THREE.MeshBasicMaterial({ color: env.colorAccessor(node.data)/* || 0xffffaa*/, transparent: false });
 			nodeMaterial.opacity = 1.0;
 
 			const sphere = new THREE.Mesh(
-				new THREE.SphereGeometry(2.5),
+				sphereGeometry,
 				nodeMaterial
 			);
 
@@ -375,7 +379,7 @@ function Graph3D() {
 		var fromClosestGridPoint = getClosestGridPoint(grid, { x: fromPos.x, y: fromPos.y });
 		var toClosestGridPoint = getClosestGridPoint(grid, { x: toPos.x, y: toPos.y });
 
-		return [ 
+		return [
 			new THREE.Vector3(fromClosestGridPoint.x, fromClosestGridPoint.y, fromPos.z + 25),
 			new THREE.Vector3(fromClosestGridPoint.x, fromClosestGridPoint.y, fromPos.z + 26),
 			new THREE.Vector3(toClosestGridPoint.x, toClosestGridPoint.y, toPos.z - 25),
@@ -383,150 +387,128 @@ function Graph3D() {
 		]
 	}
 
-	function drawEdges(graph, spline = true, partiteEdgeKind = 2) {
-		env.lineMaterial = new THREE.LineBasicMaterial({
-			color: env.edgeColor,
-			transparent: true,
-			linewidth: 1,
-			opacity: 0.2
-		});
+	function drawIntoSingleBraid(from, to) {
+		var fromCenteroid;
+		var fromPartite = Partite.getPartite(from);
+		if (fromPartite != null) {
+			fromCenteroid = fromPartite.getCenteroid();
+			fromCenteroid.z = from.z + 25;
+		} else {
+			fromCenteroid = new THREE.Vector3(10, 10, from.z + 25);
+		}
 
+		var toCenteroid;
+		var toPartite = Partite.getPartite(to);
+		if (toPartite != null) {
+			toCenteroid = toPartite.getCenteroid();
+			toCenteroid.z = from.z + 100;
+		} else {
+			toCenteroid = new THREE.Vector3(10, 10, from.z + 100);
+		}
+
+		var yup2 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z);
+		var yup3 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z + 1);
+		var yup8 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z);
+		var yup9 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z + 1);
+		
+		curve = new THREE.CatmullRomCurve3( [from, yup2, yup3, yup8, yup9, to] );
+	}
+
+	function drawBraidedLinks(link, from, to) {
+		var controlPoints = computeLinkSplineControlPoints(link);
+		var splineControlPoints = [];
+		splineControlPoints.push(from);
+		for (var i = 0; i < controlPoints.length; i += 1) {
+			splineControlPoints.push(controlPoints[i]);
+		}
+		splineControlPoints.push(to);
+		var curve = new THREE.CatmullRomCurve3(splineControlPoints);
+		return curve;
+	}
+
+	function drawStraightLink(from, to) {
+		return new THREE.CatmullRomCurve3( [from, to] );
+	}
+
+	function fetchPointsOffCurve(curve) {
+		curve.curveType = "chordal";
+		var points = curve.getPoints( pointCount - 1 );
+		return points;
+	}
+
+	function drawEdges(graph, partiteEdgeKind = 2) {
 		chart.computePartites();
 
+		var index = -1;
+		var indicies = [];
+		var positions = [];
+		var newMaterial = new THREE.LineBasicMaterial({
+			transparent: true,
+			linewidth: 1,
+			opacity: 0.1,
+			vertexColors: true
+		});
+		var geometry;
+
+		var li = 0;
 		graph.forEachLink(link => {
-			var geometry;
+			link.data = {};
+			link.data.id = li;
+			li += 1;
+
 			var fromNode = env.graph.getNode(link.fromId);
 			var toNode = env.graph.getNode(link.toId);
 
-			if (spline) {
-				var from = new THREE.Vector3( 
-					fromNode.data.sphere.position.x, 
-					fromNode.data.sphere.position.y, 
-					fromNode.data.sphere.position.z );
+			var from = new THREE.Vector3( 
+				fromNode.data.sphere.position.x, 
+				fromNode.data.sphere.position.y, 
+				fromNode.data.sphere.position.z );
 
-				var to = new THREE.Vector3( 
-					toNode.data.sphere.position.x, 
-					toNode.data.sphere.position.y, 
-					toNode.data.sphere.position.z );
-
-				var dx = (to.x - from.x);
-				var dy = (to.y - from.y);
-				var dz = (to.z - from.z);
-
-				var curve = null;
-				if (from.z != to.z) {
-					switch (partiteEdgeKind) {
-						case 0:
-						{
-							var fromCenteroid;
-							var fromPartite = Partite.getPartite(from);
-							if (fromPartite != null) {
-								fromCenteroid = fromPartite.getCenteroid();
-								fromCenteroid.z = from.z + 25;
-							} else {
-								fromCenteroid = new THREE.Vector3(10, 10, from.z + 25);
-							}
-
-							var toCenteroid = getDestinationCentroid(link.fromId);
-							if (toCenteroid === null) {
-								toCenteroid = new THREE.Vector3(10, 10, from.z + 120);
-							} else {
-								toCenteroid.z = from.z + 130;
-							}
-
-							var yup2 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, from.z + 25);
-							var yup3 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, from.z + 26);
-							var yup6 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, from.z + 75);
-							var yup7 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, from.z + 76);
-							var yup8 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, from.z + 100);
-							var yup9 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, from.z + 101);
-							
-							curve = new THREE.CatmullRomCurve3( [from, yup2, yup3, yup6, yup7, yup8, yup9, to] );
-						} break;
-						case 1:
-						{
-							var fromCenteroid;
-							var fromPartite = Partite.getPartite(from);
-							if (fromPartite != null) {
-								fromCenteroid = fromPartite.getCenteroid();
-								fromCenteroid.z = from.z + 25;
-							} else {
-								fromCenteroid = new THREE.Vector3(10, 10, from.z + 25);
-							}
-
-							var toCenteroid;
-							var toPartite = Partite.getPartite(to);
-							if (toPartite != null) {
-								toCenteroid = toPartite.getCenteroid();
-								toCenteroid.z = from.z + 100;
-							} else {
-								toCenteroid = new THREE.Vector3(10, 10, from.z + 100);
-							}
-
-							var yup2 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z);
-							var yup3 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z + 1);
-							var yup8 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z);
-							var yup9 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z + 1);
-							
-							curve = new THREE.CatmullRomCurve3( [from, yup2, yup3, yup8, yup9, to] );
-						} break;
-						case 2:
-						{
-							var controlPoints = computeLinkSplineControlPoints(link);
-							var splineControlPoints = [];
-							splineControlPoints.push(from);
-							for (var i = 0; i < controlPoints.length; i += 1) {
-								splineControlPoints.push(controlPoints[i]);
-							}
-							splineControlPoints.push(to);
-							curve = new THREE.CatmullRomCurve3(splineControlPoints);
-						} break;
-						default:
-						{
-							curve = new THREE.CatmullRomCurve3( [from, to] );
-						}
-					}
-				} else {
-					curve = new THREE.CatmullRomCurve3( [from, to] );
-				}
-
-				curve.curveType = "chordal";
-
-				var pointCount = 51;
-				var points = curve.getPoints( pointCount - 1 );
-				var positions = [];
-				for (var i = 0; i < points.length; i += 1) {
-					var p = points[i];
-					positions.push(p.x);
-					positions.push(p.y);
-					positions.push(p.z);
-				}
-
-				geometry = new THREE.BufferGeometry();
-				var bufferedPositions = new THREE.Float32BufferAttribute( positions, 3 );
-				geometry.addAttribute( 'position',  bufferedPositions);
-
-			} else {
-				geometry = new THREE.Geometry();
-				geometry.vertices.push(
-					new THREE.Vector3( fromNode.x, fromNode.y, fromNode.z ),
-					new THREE.Vector3( toNode.x, toNode.y, toNode.z )
-				);				
+			var to = new THREE.Vector3( 
+				toNode.data.sphere.position.x, 
+				toNode.data.sphere.position.y, 
+				toNode.data.sphere.position.z );
+			
+			var curve = null;
+			var edgeKind = -1;
+			if (from.z != to.z) {
+				edgeKind = partiteEdgeKind;
 			}
 
-			var newMaterial = new THREE.LineBasicMaterial({
-				color: 0x4066E5,
-				// vertexColors: true,
-				transparent: true,
-				linewidth: 1,
-				opacity: 0.1
-			});
+			switch (edgeKind) {
+				case 1:
+					curve = drawIntoSingleBraid(from, to);
+					break;
+				case 2:
+					curve = drawBraidedLinks(link, from, to);
+					break;
+				default:
+					curve = drawStraightLink(from, to);
+				}
 
-			var line = new THREE.Line( geometry, newMaterial );
-			env.scene.add( link.data.line = line );
+			var points = fetchPointsOffCurve(curve);
+			positions.push(points[0].x, points[0].y, points[0].z);
+			index += 1;
 
-
+			for (var i = 1; i < points.length; i += 1) {
+				var p = points[i];
+				positions.push(p.x);
+				positions.push(p.y);
+				positions.push(p.z);
+				index +=1;
+				indicies.push(index - 1, index);
+			}
 		});
+
+		geometry = new THREE.BufferGeometry();
+		var bufferedPositions = new THREE.Float32BufferAttribute( positions, 3 );
+		geometry.addAttribute( 'position', bufferedPositions);
+		geometry.setIndex(indicies);
+		var lineMesh = new THREE.LineSegments(geometry, newMaterial);
+		env.scene.add( lineMesh );
+		env.lineMesh = lineMesh;
+		chart._paintLinks(new THREE.Color(env.edgeColor));
+		console.log(env.renderer.info);
 	}
 
 	// Component constructor
@@ -571,7 +553,7 @@ function Graph3D() {
 		function getSetEnv(prop, redigest = false,  onChange = newVal => {}) {
 			return _ => {
 				if (!arguments.length) { 
-					return env[prop] 
+					return env[prop];
 				}
 
 				env[prop] = _;
@@ -602,7 +584,6 @@ function Graph3D() {
 	}
 
 	chart.nodeColor = function(hexColor) {
-		// env.edgeColor = hexColor;
 		env.graph.forEachNode(node => {
 			node.data.sphere.material.setValues({
 				color: hexColor,
@@ -641,118 +622,22 @@ function Graph3D() {
 		});
 	}
 
-	chart.colorLink = function(linkData, hexColor = 0x000000) {
-		env.edgeColor = hexColor;
-		const material = linkData.line.material;
-		linkData.line.material  = new THREE.LineBasicMaterial({
-			vertexColors: false,
-			color: hexColor,
-			transparent: material.transparent,
-			linewidth: material.linewidth,
-			opacity: material.opacity,
-			visible: true
-		});
-	}
-
-	chart._revealNodeAfterTime = function(node, millisecs) {
-		var nodeMaterial = node.data.sphere.material;
-		var isVisible = nodeMaterial.visible;
-		if (isVisible) {
-			return false;
+	chart.colorLink = function(link, i, hexColor = 0x000000) {
+		this._paintLink(new THREE.Color(hexColor), i);
+		if (link === null && i === -1) {
+			this._refreshLinkPaint();
 		}
 
-		setTimeout(function() {
-			nodeMaterial.setValues({
-				visible: true,
-			});
-		}, millisecs);
-
-		return true;
-	}
-
-	chart._revealLinkAfterTime = function(link, millisecs) {
-		var lineMaterial = link.data.line.material;
-		var isVisible = lineMaterial.visible;
-		if (isVisible) {
-			return false;
-		}
-
-		setTimeout(function() {
-			lineMaterial.setValues({
-				visible: true,
-			});
-		}, millisecs);
-
-		return true;
-	}
-
-	chart.timedShow = function() {
-		var thisChart = this;
-		this.setVisibilityForEdges(false);
-		this.setVisibilityForNodes(false);
-		env.nodesVisible = true;
-
-		var timeslice = 4;
-		var i = 10;
-
-		var visitedNodes = [];
-		var stack = [];
-
-		stack.push(env.graph.getNode(0));
-
-		while(stack.length > 0) {
-			var node = stack.pop();
-
-			if (visitedNodes.indexOf(node.id) != -1) {
-				continue;
-			}
-
-			console.log("visiting " + node.id);
-			var nodeRevealed = thisChart._revealNodeAfterTime(node, i);
-			if(nodeRevealed) {
-				i = i + timeslice;
-			} 
-
-			var revealedAnything = false;
-			var links = env.graph.getLinks(node.id);
-
-			for (var l = 0; l < links.length; l += 1) {
-				var link = links[l];
-
-				if (link.fromId != node.id) {
-					continue;
-				}
-
-				var linkRevealed = thisChart._revealLinkAfterTime(link, i);
-				if (linkRevealed) {
-					i += timeslice;
-				}
-
-				var to = env.graph.getNode(link.toId);
-
-				console.log("going from " + node.id + " to " + to.id);
-
-				if (to === node)
-					continue;
-
-				if (visitedNodes.indexOf(to.id) === -1) { // plan on visiting only if you have not visited it before
-					stack.push(to);
-				}
-					
-				var anotherNodeRevealed = thisChart._revealNodeAfterTime(to, i);
-				if (anotherNodeRevealed) {
-					i += timeslice;
-				}
-			}
-
-			visitedNodes.push(node.id);
-		}
 	}
 
 	chart.enumerateLinks = function(callOnLink) {
+		var i = 0;
 		env.graph.forEachLink(link => {
-			callOnLink(link.data);
+			callOnLink(link, i);
+			i += 1;
 		});
+
+		callOnLink(null, -1);
 	}
 
 	chart.toggleEdges = function() {
@@ -762,10 +647,8 @@ function Graph3D() {
 
 	chart.setVisibilityForEdges = function(isVisible) {
 		env.edgesVisible = isVisible;
-		env.graph.forEachLink(link => {
-			link.data.line.material.setValues({
-				visible: isVisible,
-			});
+		env.lineMesh.material.setValues({
+			visible: isVisible,
 		});
 	}
 
@@ -811,46 +694,161 @@ function Graph3D() {
 			i += 1;
 		});
 
+		this._paintLinks();
+	}
+
+	chart._paintLinks = function(color = null) {
+		var colors = [];
+
 		env.graph.forEachLink(link => {
+			if (color != null && color != undefined) {
+				if (color.getHex() === env.bkgColor) {
+					link.data.revealed = false;
+				}
+
+				for (var j = 0; j < 51; j += 1) {
+					colors.push(color.r);
+					colors.push(color.g);
+					colors.push(color.b);
+				}
+				return;
+			}
+
 			var fromNode = env.graph.getNode(link.fromId);
 			var toNode = env.graph.getNode(link.toId);
 
 			var fromColor = fromNode.data.sphere.material.color;
-			var fromOpacity = fromNode.data.sphere.material.opacity;
 			var toColor = toNode.data.sphere.material.color;
 
-			var colors = [];
-			var fromColor = fromNode.data.sphere.material.color;
-			var toColor = toNode.data.sphere.material.color;
 			var stepColor = {
 				r: (toColor.r - fromColor.r)/51,
 				g: (toColor.g - fromColor.g)/51,
 				b: (toColor.b - fromColor.b)/51
 			};
 
-			var colors = [];
-			for (var i = 0; i < 51; i += 1) {
-				colors.push(fromColor.r + (i * stepColor.r));
-				colors.push(fromColor.g + (i * stepColor.g));
-				colors.push(fromColor.b + (i * stepColor.b));
+			for (var j = 0; j < 51; j += 1) {
+				colors.push(fromColor.r + (j * stepColor.r));
+				colors.push(fromColor.g + (j * stepColor.g));
+				colors.push(fromColor.b + (j * stepColor.b));
 			}
-
-			var line = link.data.line;
-			var newMaterial = new THREE.LineBasicMaterial({
-				// color: fromColor.getHex(),
-				transparent: true,
-				linewidth: 1,
-				opacity: 0.1,
-				vertexColors: true,
-				// needsUpdate: true
-			});
-
-			link.data.line.material = newMaterial;
-
-			var lineGeometry = line.geometry;
-			lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-			lineGeometry.colorsNeedUpdate = true
 		});
+
+		var oldMaterial = env.lineMesh.material;
+		var newMaterial = new THREE.LineBasicMaterial({
+			transparent: true,
+			linewidth: (oldMaterial === null || oldMaterial === undefined) ? 1 : oldMaterial.linewidth,
+			opacity: (oldMaterial === null || oldMaterial === undefined) ? 0.1 : oldMaterial.opacity,
+			vertexColors: true
+		});
+
+		env.lineMesh.material = newMaterial;
+
+		var lineGeometry = env.lineMesh.geometry;
+		lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+		lineGeometry.colorsNeedUpdate = true;
+	}
+
+	chart._paintLink = function(color, i) {
+		if (color.getHex() === env.bkgColor) {
+			link.data.revealed = false;
+		}
+		var lineGeometry = env.lineMesh.geometry;
+		var colors = lineGeometry.getAttribute('color').array;
+		var blockSize = 51*3;
+		var offset = blockSize * i;
+		var rgb = [color.r, color.g, color.b];
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			colors[index] = rgb[index%3];
+		}
+	}
+
+	chart._refreshLinkPaint = function() {
+		var lineGeometry = env.lineMesh.geometry;
+		var colors = lineGeometry.getAttribute('color').array;
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+		lineGeometry.colorsNeedUpdate = true;
+	}
+
+	chart._hideLink = function(link, i) {
+		link.data.revealed = false;
+		
+		var lineGeometry = env.lineMesh.geometry;
+		var positions = lineGeometry.getAttribute('position').array;
+		var blockSize = 51*3;
+		var offset = blockSize * i;
+		var positionZero = [];
+		positionZero.push(positions[offset], positions[offset + 1], positions[offset + 2]);
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			positions[index] = positionZero[index%3];
+		}
+	}
+
+	chart._hideLinks = function() {
+		var thisChart = this;
+		var i = 0;
+		env.graph.forEachLink(link => {
+			thisChart._hideLink(link, i);
+			i += 1;
+		});
+		this._refreshLinkPostions();
+	}
+
+	chart._showLink = function(link, i) {
+		var fromNode = env.graph.getNode(link.fromId);
+		var toNode = env.graph.getNode(link.toId);
+
+		var from = new THREE.Vector3( 
+			fromNode.data.sphere.position.x, 
+			fromNode.data.sphere.position.y, 
+			fromNode.data.sphere.position.z );
+
+		var to = new THREE.Vector3( 
+			toNode.data.sphere.position.x, 
+			toNode.data.sphere.position.y, 
+			toNode.data.sphere.position.z );
+
+		// TODO refactor the switch in drawEdges into a function and call from here
+		var curve;
+		if (to.z === from.z) {
+			curve = drawStraightLink(from, to);
+		} else {
+			curve = drawBraidedLinks(link, from, to);
+		}
+
+		var points = fetchPointsOffCurve(curve);
+		var positionsT = [];
+		var blockSize = 51*3;
+		for (var x = 0; x < points.length; x += 1) {
+			var p = points[x];
+			positionsT.push(p.x);
+			positionsT.push(p.y);
+			positionsT.push(p.z);
+		}
+
+		assert(positionsT.length === blockSize, "positionsT's length:" + positionsT.length);
+
+		var lineGeometry = env.lineMesh.geometry;
+		var positions = lineGeometry.getAttribute('position').array;
+		var offset = blockSize * i;
+
+		var j = 0;
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			positions[index] = positionsT[j];
+		}
+	}
+
+	chart._refreshLinkPostions = function() {
+		var lineGeometry = env.lineMesh.geometry;
+		var colors = lineGeometry.getAttribute('position').array;
+		// can we avoid creating a new THREE.Float32BufferAttribute() here?
+		lineGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( colors, 3 ) );
 	}
 
 	chart.computePartites = function() {
@@ -923,6 +921,101 @@ function Graph3D() {
 		});
 	}
 
+	chart._revealNodeAfterTime = function(node, millisecs) {
+		var nodeMaterial = node.data.sphere.material;
+		var isVisible = nodeMaterial.visible;
+		if (isVisible) {
+			return false;
+		}
+
+		setTimeout(function() {
+			nodeMaterial.setValues({
+				visible: true,
+			});
+		}, millisecs);
+
+		return true;
+	}
+
+	chart._revealLinkAfterTime = function(link, millisecs) {
+		// if (link.data.revealed) {
+		// 	return false;
+		// }
+
+		var thisChart = this;
+
+		setTimeout(function() {
+			thisChart._showLink(link, link.data.id);
+			link.data.revealed = true;
+			thisChart._refreshLinkPostions();
+		}, millisecs);
+
+		return true;
+	}
+
+	chart.timedShow = function() {
+		var thisChart = this;
+		// this.setVisibilityForEdges(false);
+		// this._paintLinks(new THREE.Color(env.bkgColor));
+		this._hideLinks();
+		this.setVisibilityForNodes(false);
+		env.nodesVisible = true;
+
+		var timeslice = 4;
+		var i = 10;
+
+		var visitedNodes = [];
+		var stack = [];
+
+		stack.push(env.graph.getNode(0));
+
+		while(stack.length > 0) {
+			var node = stack.pop();
+
+			if (visitedNodes.indexOf(node.id) != -1) {
+				continue;
+			}
+
+			console.log("visiting " + node.id);
+			var nodeRevealed = thisChart._revealNodeAfterTime(node, i);
+			if(nodeRevealed) {
+				i = i + timeslice;
+			} 
+
+			var links = env.graph.getLinks(node.id);
+
+			for (var l = 0; l < links.length; l += 1) {
+				var link = links[l];
+
+				if (link.fromId != node.id) {
+					continue;
+				}
+
+				var linkRevealed = thisChart._revealLinkAfterTime(link, i);
+				if (linkRevealed) {
+					i += timeslice;
+				}
+
+				var to = env.graph.getNode(link.toId);
+
+				console.log("going from " + node.id + " to " + to.id);
+
+				if (to === node)
+					continue;
+
+				if (visitedNodes.indexOf(to.id) === -1) { // plan on visiting only if you have not visited it before
+					stack.push(to);
+				}
+					
+				var anotherNodeRevealed = thisChart._revealNodeAfterTime(to, i);
+				if (anotherNodeRevealed) {
+					i += timeslice;
+				}
+			}
+
+			visitedNodes.push(node.id);
+		}
+	}
 
 	chart._clickNodeCallback = null;
 	chart.setNodeCallback = function(clickNodeCallback) {
