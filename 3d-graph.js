@@ -12,6 +12,8 @@ function assert(condition = true, message = "Unknown Assert") {
 	}
 }
 
+// #region Partite Class
+
 var partites = [];
 class Partite {
 	constructor(name, memberCount, membershipChecker) {
@@ -75,6 +77,8 @@ class Partite {
 	}
 }
 
+// #endregion
+
 function Graph3D() {
 
 	const CAMERA_DISTANCE2NODES_FACTOR = 150;
@@ -86,6 +90,7 @@ function Graph3D() {
 		edgeColor: 0x0077FF,
 		graph: null,
 		lineMesh: null,
+		nodePoints: null,
 		edgesVisible: true,
 		nodesVisible: true
 	};
@@ -112,6 +117,7 @@ function Graph3D() {
 
 		// Capture mouse coords on move
 		env.raycaster = new THREE.Raycaster();
+		env.raycaster.params.Points.threshold = 5;
 		env.mouse = new THREE.Vector2();
 		env.mouse.x = -2; // Initialize off canvas
 		env.mouse.y = -2;
@@ -140,7 +146,7 @@ function Graph3D() {
 
 		// Setup camera
 		env.camera = new THREE.PerspectiveCamera();
-		env.camera.far = 25000;
+		env.camera.far = 30000;
 		env.camera.position.z = 2200;
 		env.camera.position.x = -1473;
 		env.camera.position.y = -300;
@@ -166,7 +172,7 @@ function Graph3D() {
 			// Update tooltip
 			env.raycaster.setFromCamera(env.mouse, env.camera);
 			var intersects = registerNodesWithRaycaster();
-			env.toolTipElem.innerHTML = (intersects != null && intersects.length) ? intersects[0].object.name || '' : '';
+			env.toolTipElem.innerHTML = (intersects != null && intersects.length) ? intersects[0].index || '' : '';
 			
 
 			// Frame cycle
@@ -198,24 +204,7 @@ function Graph3D() {
 		env.graph = graph;
 
 		// Add WebGL objects
-		var sphereGeometry = new THREE.SphereGeometry(2.5);
-		graph.forEachNode(node => {
-			const nodeMaterial = new THREE.MeshBasicMaterial({ color: env.colorAccessor(node.data)/* || 0xffffaa*/, transparent: false });
-			nodeMaterial.opacity = 1.0;
-
-			const sphere = new THREE.Mesh(
-				sphereGeometry,
-				nodeMaterial
-			);
-
-			sphere.nodeId = node.data.id;
-			sphere.name = node.data.label;
-			sphere.position.x = node.data.x;
-			sphere.position.y = node.data.y;
-			sphere.position.z = node.data.z;
-
-			env.scene.add(node.data.sphere = sphere);
-		});
+		drawNodes(graph);
 
 		drawEdges(graph);
 
@@ -236,6 +225,70 @@ function Graph3D() {
 	}
 
 
+
+	// #region Draw Nodes
+
+	function nodePosition(node) {
+		return {
+			x : node.data.x,
+			y : node.data.y,
+			z : node.data.z
+		};
+	}
+
+	function drawNodes(graph) {
+		// var sphereGeometry = new THREE.SphereGeometry();
+		
+		var positions = [];
+		var colors = [];
+		graph.forEachNode(node => {
+			// const nodeMaterial = new THREE.MeshBasicMaterial({ color: env.colorAccessor(node.data)/* || 0xffffaa*/, transparent: false });
+			// nodeMaterial.opacity = 1.0;
+
+			var color = new THREE.Color(env.colorAccessor(node.data));
+			node.data.color = color;
+
+			colors.push(color.r);
+			colors.push(color.g);
+			colors.push(color.b);
+
+			positions.push(node.data.x);
+			positions.push(node.data.y);
+			positions.push(node.data.z);
+
+			// sphere.nodeId = node.data.id;
+			// sphere.name = node.data.label;
+			// sphere.position.x = node.data.x;
+			// sphere.position.y = node.data.y;
+			// sphere.position.z = node.data.z;
+		});
+
+		var sprite = new THREE.TextureLoader().load( 'disc.png' );
+		var spheresGeometry = new THREE.BufferGeometry();
+		spheresGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
+		spheresGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+		spheresGeometry.computeBoundingBox(); // TODO: check why we need this. Seems useless.
+
+
+		var nodeMaterial = new THREE.PointsMaterial( { 
+			size: 70, 
+			map: sprite,
+			transparent: true,
+			alphaTest: 0.05,
+			vertexColors: THREE.VertexColors 
+		} );
+
+		const nodePoints = new THREE.Points(
+			spheresGeometry,
+			nodeMaterial
+		);
+
+		env.nodePoints = nodePoints;
+		env.scene.add(env.nodePoints);
+	}
+
+	// #endregion
+
 	// #region Draw Edges
 
 	function getDestinationCentroid(fromNodeId) {
@@ -250,7 +303,7 @@ function Graph3D() {
 			}
 
 			var toNode = env.graph.getNode(link.toId);
-			var toPos = toNode.data.sphere.position;
+			var toPos = nodePosition(toNode);
 			centeroid.x += toPos.x;
 			centeroid.y += toPos.y;
 			centeroid.z += toPos.z;
@@ -327,8 +380,8 @@ function Graph3D() {
 		// need to cluster links, across partites
 		var fromNode = env.graph.getNode(link.fromId);
 		var toNode = env.graph.getNode(link.toId);
-		var fromPos = fromNode.data.sphere.position;
-		var toPos = toNode.data.sphere.position;
+		var fromPos = nodePosition(fromNode);
+		var toPos = nodePosition(toNode);
 		var fromPartite = Partite.getPartite(fromPos);
 		var toPartite = Partite.getPartite(toPos);
 
@@ -338,6 +391,14 @@ function Graph3D() {
 		var maxBounds = new THREE.Vector2(
 			Math.min(fromPartite.maxBounds.x, toPartite.maxBounds.x), 
 			Math.min(fromPartite.maxBounds.y, toPartite.maxBounds.y));
+
+		if ((minBounds.x > maxBounds.x) || (minBounds.y > maxBounds.y)) {
+			minBounds.x = Math.min(fromPartite.minBounds.x, toPartite.minBounds.x);
+			minBounds.y = Math.min(fromPartite.minBounds.y, toPartite.minBounds.y);
+
+			maxBounds.x = Math.max(fromPartite.maxBounds.x, toPartite.maxBounds.x);
+			maxBounds.y = Math.max(fromPartite.maxBounds.y, toPartite.maxBounds.y);
+		}
 
 		var grid = computeGridPoints(maxBounds, minBounds);
 		var fromClosestGridPoint = getClosestGridPoint(grid, { x: fromPos.x, y: fromPos.y });
@@ -424,14 +485,14 @@ function Graph3D() {
 			var toNode = env.graph.getNode(link.toId);
 
 			var from = new THREE.Vector3( 
-				fromNode.data.sphere.position.x, 
-				fromNode.data.sphere.position.y, 
-				fromNode.data.sphere.position.z );
+				fromNode.data.x, 
+				fromNode.data.y, 
+				fromNode.data.z );
 
 			var to = new THREE.Vector3( 
-				toNode.data.sphere.position.x, 
-				toNode.data.sphere.position.y, 
-				toNode.data.sphere.position.z );
+				toNode.data.x, 
+				toNode.data.y, 
+				toNode.data.z );
 			
 			var curve = null;
 			var edgeKind = -1;
@@ -569,11 +630,34 @@ function Graph3D() {
 	}
 
 	chart.colorNode = function(nodeData, hexColor = 0x000000) {
-		const material = nodeData.sphere.material;
-		material.setValues({
-			color: hexColor,
-			transparent: false
-		});
+		const id = nodeData.id;
+
+		if (hexColor === env.bkgColor) {
+			nodeData.revealed = false;
+		}
+
+		var nodeGeometry = env.nodePoints.geometry;
+		var colors = nodeGeometry.getAttribute('color').array;
+		var blockSize = 3;
+		var offset = blockSize * id;
+		var color = new THREE.Color(hexColor);
+		// TODO: remove this color setter after we add code to access colors for a node, directly from the color buffer.
+		nodeData.color = color; 
+		var rgb = [color.r, color.g, color.b];
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			colors[index] = rgb[index%3];
+		}
+		this._refreshNodePaint();
+	}
+
+	chart._refreshNodePaint = function() {
+		var nodeGeometry = env.nodePoints.geometry;
+		var colors = nodeGeometry.getAttribute('color').array;
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		nodeGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+		nodeGeometry.colorsNeedUpdate = true;
 	}
 
 	// #endregion
@@ -610,31 +694,73 @@ function Graph3D() {
 
 	// #region Buffer updates: Node Visibility
 
-	chart.changeNodeOpacity = function(nodeData, opacity = 1) {
-		const material = nodeData.sphere.material;
-		material.setValues({
+	chart.changeNodeOpacity = function(nodeData = null, opacity = 1) {
+		env.nodePoints.material.setValues({
 			opacity: opacity,
-			transparent: false
+			//transparent: true
 		});
 	}
 
 	chart.toggleNodes = function() {
-		var isVisible = env.nodesVisible;
-		env.nodesVisible = !isVisible;
-		env.graph.forEachNode(node => {
-			node.data.sphere.material.setValues({
-				visible: env.nodesVisible,
-			});
-		});
+		this.setVisibilityForNodes(!env.nodesVisible);
+		this.changeNodeOpacity(0.5);
 	}
 
 	chart.setVisibilityForNodes = function(isVisible) {
-		env.edgesVisible = isVisible;
-		env.graph.forEachNode(node => {
-			node.data.sphere.material.setValues({
-				visible: isVisible,
-			});
+		env.nodesVisible = isVisible;
+
+		env.nodePoints.material.setValues({
+			visible: env.nodesVisible
 		});
+	}
+
+	chart._hideNodes = function() {
+		var thisChart = this;
+		env.graph.forEachNode(node => {
+			thisChart._hideNode(node);
+		});
+	}
+
+	chart._hideNode = function(node) {
+		var i = node.data.id;
+		var nodeGeometry = env.nodePoints.geometry;
+		var positions = nodeGeometry.getAttribute('position').array;
+		var blockSize = 3;
+		var offset = blockSize * i;
+		var positionZero = [];
+		positionZero.push(0.0, 0.0, 0.0);
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			positions[index] = positionZero[index%3];
+		}
+
+		this._refreshNodePostions();
+	}
+
+	chart._showNode = function(nodeData) {
+		var i = nodeData.id;
+		var nodeGeometry = env.nodePoints.geometry;
+		var positions = nodeGeometry.getAttribute('position').array;
+		var blockSize = 3;
+		var offset = blockSize * i;
+		var positionZero = [];
+		positionZero.push(nodeData.x, nodeData.y, nodeData.z);
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			positions[index] = positionZero[index%3];
+		}
+
+		this._refreshNodePostions();
+	}
+
+	chart._refreshNodePostions = function() {
+		var nodeGeometry = env.nodePoints.geometry;
+		var positions = nodeGeometry.getAttribute('position').array;
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		nodeGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
+		nodeGeometry.colorsNeedUpdate = true;
 	}
 
 	// #endregion
@@ -655,10 +781,7 @@ function Graph3D() {
 			var nextB = startColor.b + (i * diffColor.b);
 			var nextColor = new THREE.Color(nextR, nextG, nextB);
 
-			node.data.sphere.material.setValues({
-				color: nextColor,
-				transparent: false
-			});
+			this.colorNode(node.data, nextColor.getHex());
 
 			i += 1;
 		});
@@ -696,8 +819,9 @@ function Graph3D() {
 			var fromNode = env.graph.getNode(link.fromId);
 			var toNode = env.graph.getNode(link.toId);
 
-			var fromColor = fromNode.data.sphere.material.color;
-			var toColor = toNode.data.sphere.material.color;
+			// TODO: fetch color directly from color buffer; do not store on the node itself.
+			var fromColor = fromNode.data.color;
+			var toColor = toNode.data.color;
 
 			var stepColor = {
 				r: (toColor.r - fromColor.r)/51,
@@ -798,14 +922,14 @@ function Graph3D() {
 		var toNode = env.graph.getNode(link.toId);
 
 		var from = new THREE.Vector3( 
-			fromNode.data.sphere.position.x, 
-			fromNode.data.sphere.position.y, 
-			fromNode.data.sphere.position.z );
+			fromNode.data.x, 
+			fromNode.data.y, 
+			fromNode.data.z );
 
 		var to = new THREE.Vector3( 
-			toNode.data.sphere.position.x, 
-			toNode.data.sphere.position.y, 
-			toNode.data.sphere.position.z );
+			toNode.data.x, 
+			toNode.data.y, 
+			toNode.data.z );
 
 		// TODO refactor the switch in drawEdges into a function and call from here
 		var curve;
@@ -868,9 +992,9 @@ function Graph3D() {
 
 		var knownZcoordinates = [];
 		env.graph.forEachNode( node => {
-			var x = node.data.sphere.position.x;
-			var y = node.data.sphere.position.y;
-			var z = node.data.sphere.position.z;
+			var x = node.data.x;
+			var y = node.data.y;
+			var z = node.data.z;
 			var index = knownZcoordinates.indexOf(z);
 			if (index === -1) {
 				var partite = new Partite("Level " + partites.length, 0, membershipCheckerGenerator(z));
@@ -890,35 +1014,23 @@ function Graph3D() {
 		var isVisible = env.edgesVisible;
 		env.edgesVisible = !isVisible;
 
+		var i = 0;
 		env.graph.forEachLink(link => {
 			var fromNode = env.graph.getNode(link.fromId);
 			var toNode = env.graph.getNode(link.toId);
 
-			var fromZ = fromNode.data.sphere.position.z;
-			var toZ = toNode.data.sphere.position.z;
+			var fromZ = fromNode.data.z;
+			var toZ = toNode.data.z;
 
 			if (fromZ != toZ) {
-				var material = link.data.line.material;
-				link.data.line.material = new THREE.LineBasicMaterial({
-					vertexColors: false,
-					color: material.color,
-					transparent: material.transparent,
-					linewidth: material.linewidth,
-					opacity: material.opacity,
-					visible: env.edgesVisible
-				});
+				this._showLink(link, i);
 			} else {
-				var material = link.data.line.material;
-				link.data.line.material = new THREE.LineBasicMaterial({
-					vertexColors: false,
-					color: material.color,
-					transparent: material.transparent,
-					linewidth: material.linewidth,
-					opacity: material.opacity,
-					visible: true
-				});
+				this._hideLink(link, i);
 			}
+			i += 1;
 		});
+
+		this._refreshLinkPostions();
 	}
 
 	// #endregion
@@ -927,16 +1039,16 @@ function Graph3D() {
 	// #region Time Lapse
 
 	chart._revealNodeAfterTime = function(node, millisecs) {
-		var nodeMaterial = node.data.sphere.material;
-		var isVisible = nodeMaterial.visible;
-		if (isVisible) {
-			return false;
-		}
+		// var nodeMaterial = node.data.sphere.material;
+		// var isVisible = nodeMaterial.visible;
+		// if (isVisible) {
+		// 	return false;
+		// }
+
+		var thisChart = this;
 
 		setTimeout(function() {
-			nodeMaterial.setValues({
-				visible: true,
-			});
+			thisChart._showNode(node.data);
 		}, millisecs);
 
 		return true;
@@ -960,12 +1072,9 @@ function Graph3D() {
 
 	chart.timedShow = function() {
 		var thisChart = this;
-		// this.setVisibilityForEdges(false);
-		// this._paintLinks(new THREE.Color(env.bkgColor));
 		this._hideLinks();
-		this.setVisibilityForNodes(false);
+		this._hideNodes();
 		env.nodesVisible = true;
-
 		var timeslice = 4;
 		var i = 10;
 
@@ -985,8 +1094,7 @@ function Graph3D() {
 			var nodeRevealed = thisChart._revealNodeAfterTime(node, i);
 			if(nodeRevealed) {
 				i = i + timeslice;
-			} 
-
+			}
 			var links = env.graph.getLinks(node.id);
 
 			for (var l = 0; l < links.length; l += 1) {
@@ -1002,8 +1110,7 @@ function Graph3D() {
 				}
 
 				var to = env.graph.getNode(link.toId);
-
-				console.log("going from " + node.id + " to " + to.id);
+				// console.log("going from " + node.id + " to " + to.id);
 
 				if (to === node)
 					continue;
@@ -1030,9 +1137,11 @@ function Graph3D() {
 	function registerNodesWithRaycaster() {
 		if (env.graph != null) {
 			var spheres = [];
-			env.graph.forEachNode(node => {
-				spheres.push(node.data.sphere);
-			});
+			spheres.push(env.nodePoints);
+			// env.graph.forEachNode(node => {
+			// 	spheres.push(node.data.sphere);
+			// });
+
 
 			var intersects = env.raycaster.intersectObjects(spheres);
 			return intersects;
@@ -1049,13 +1158,15 @@ function Graph3D() {
 			return;
 		}
 
+		console.log(intersects);
+
 		for (var i = 0; i < intersects.length; i += 1) {
-			var object = intersects[0].object;
-			if (!object.hasOwnProperty("nodeId") || !object.hasOwnProperty("name"))
+			var object = intersects[0];
+			if (!object.hasOwnProperty("index"))
 				continue;
 			
-			if (object.nodeId >= 0) {
-				const node = env.graph.getNode(object.nodeId);
+			if (object.index >= 0) {
+				const node = env.graph.getNode(object.index);
 				if (chart._clickNodeCallback != null) {
 					chart._clickNodeCallback(node.data.id);
 				}

@@ -1,4 +1,4 @@
-function getGraphDataSets() {
+function getGraphDataSets(boom = false) {
 
     // Color brewer paired set
     const colors = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'];
@@ -18,6 +18,7 @@ function getGraphDataSets() {
         , new DataParams("data/one-n.json", "<em>Stacked, 2D Skinny Force Directed Graphs</em> data", 0xffffff)
         , new DataParams("data/one-o.json", "<em>Stacked, 2D Balanced Force Directed Graphs</em> data", 0x111111)
         , new DataParams("data/one-a.json", "<em>Stacked, 2D Balanced Force Directed Graphs</em> data", 0x111111)
+        , new DataParams("data/one-b.json", "<em>Stacked, 2D Balanced Force Directed Graphs</em> data", 0x111111)
     ];
 
     const dataFuntion = function(params) {
@@ -58,5 +59,8 @@ function getGraphDataSets() {
         return data;
     }
 
-    return [dataFuntion(p[p.length - 1])];
+    if (boom) {
+        return [dataFuntion(p[p.length - 1])];
+    }
+    return [dataFuntion(p[p.length - 2])];
 }

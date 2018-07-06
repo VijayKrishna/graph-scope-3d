@@ -115,6 +115,13 @@ body {
     content:"\0023F1";
 }
 
+.bomb {
+    background: white;
+}
+.bomb::after {
+    content: "\01F4A3"
+}
+
 .small-btn {
     width: 50px !important;
     height: 25px !important;

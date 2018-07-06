@@ -49,8 +49,7 @@ var displayDiagnosticInfo = function(thingsToDisplay) {
 }
 
 let curDataSetIdx;
-const dataSets = getGraphDataSets();
-console.log('dataSets from index.js', dataSets);
+var dataSets = getGraphDataSets();
 
 let roundRobinData;
 (roundRobinData = function() {
@@ -72,7 +71,7 @@ function nodeClickCallBack(nodeid) {
 		["z", node.z], 
 		["ID", node.id], 
 		["Label", node.label],
-		["Color", "#" + node.sphere.material.color.getHexString().toUpperCase()],
+		["Color", "#" + node.color.getHexString().toUpperCase()],
 	);
 
 	var neighboringNodes = graphApi.diagnostics_getNeighboringNodes(nodeid);
@@ -90,8 +89,11 @@ function nodeClickCallBack(nodeid) {
 	}
 
 	displayDiagnosticInfo(thingsToDisplay);
+}
 
-	console.log();
+function boom() {
+	dataSets = getGraphDataSets(true);
+	roundRobinData();
 }
 
 graphApi.setClickNodeCallback(nodeClickCallBack);
