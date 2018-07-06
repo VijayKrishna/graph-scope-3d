@@ -95,43 +95,6 @@ function Graph3D() {
 		console.log(env.camera);
 	}
 
-	function registerNodesWithRaycaster() {
-		if (env.graph != null) {
-			var spheres = [];
-			env.graph.forEachNode(node => {
-				spheres.push(node.data.sphere);
-			});
-
-			var intersects = env.raycaster.intersectObjects(spheres);
-			return intersects;
-		}
-
-		return null;
-	}
-
-	function clickNode() {
-		env.raycaster.setFromCamera(env.mouse, env.camera);
-		const intersects = registerNodesWithRaycaster();
-
-		if (intersects == null || intersects.length <= 0) {
-			return;
-		}
-
-		for (var i = 0; i < intersects.length; i += 1) {
-			var object = intersects[0].object;
-			if (!object.hasOwnProperty("nodeId") || !object.hasOwnProperty("name"))
-				continue;
-			
-			if (object.nodeId >= 0) {
-				const node = env.graph.getNode(object.nodeId);
-				if (chart._clickNodeCallback != null) {
-					chart._clickNodeCallback(node.data.id);
-				}
-				break;
-			}
-		}
-	}
-
 	function initStatic() {
 		// Wipe DOM
 		env.domNode.innerHTML = '';
@@ -234,8 +197,6 @@ function Graph3D() {
 
 		env.graph = graph;
 
-		// console.log('graph from 3d-force-graph', graph);
-
 		// Add WebGL objects
 		var sphereGeometry = new THREE.SphereGeometry(2.5);
 		graph.forEachNode(node => {
@@ -273,6 +234,9 @@ function Graph3D() {
 			}
 		}
 	}
+
+
+	// #region Draw Edges
 
 	function getDestinationCentroid(fromNodeId) {
 		var fromNode = env.graph.getNode(fromNodeId);
@@ -511,6 +475,9 @@ function Graph3D() {
 		console.log(env.renderer.info);
 	}
 
+	// #endregion
+
+
 	// Component constructor
 	function chart(chartHostDivElement) {
 		env.domNode = chartHostDivElement;
@@ -520,6 +487,9 @@ function Graph3D() {
 
 		return chart;
 	}
+
+
+	// #region CompProp
 
 	class CompProp {
 		constructor(name, initVal = null, redigest = true, onChange = newVal => {}) {
@@ -576,12 +546,18 @@ function Graph3D() {
 		return this;
 	};
 
+	// #endregion
+
 	chart.resetState(); // Set defaults at instantiation
+
 
 	chart.bkgColor = function(hexColor) {
 		env.bkgColor = hexColor;
 		env.renderer.setClearColor(env.bkgColor, 1);
 	}
+
+
+	// #region Buffer updates: Node colors
 
 	chart.nodeColor = function(hexColor) {
 		env.graph.forEachNode(node => {
@@ -600,13 +576,10 @@ function Graph3D() {
 		});
 	}
 
-	chart.changeNodeOpacity = function(nodeData, opacity = 1) {
-		const material = nodeData.sphere.material;
-		material.setValues({
-			opacity: opacity,
-			transparent: false
-		});
-	}
+	// #endregion
+
+
+	// #region Object Enumeration
 
 	chart.enumerateNodes = function(callOnNode, nodeIds = null) {
 		if (nodeIds === null) {
@@ -622,14 +595,6 @@ function Graph3D() {
 		});
 	}
 
-	chart.colorLink = function(link, i, hexColor = 0x000000) {
-		this._paintLink(new THREE.Color(hexColor), i);
-		if (link === null && i === -1) {
-			this._refreshLinkPaint();
-		}
-
-	}
-
 	chart.enumerateLinks = function(callOnLink) {
 		var i = 0;
 		env.graph.forEachLink(link => {
@@ -640,15 +605,16 @@ function Graph3D() {
 		callOnLink(null, -1);
 	}
 
-	chart.toggleEdges = function() {
-		var isVisible = env.edgesVisible;
-		chart.setVisibilityForEdges(!isVisible);
-	}
+	// #endregion
 
-	chart.setVisibilityForEdges = function(isVisible) {
-		env.edgesVisible = isVisible;
-		env.lineMesh.material.setValues({
-			visible: isVisible,
+
+	// #region Buffer updates: Node Visibility
+
+	chart.changeNodeOpacity = function(nodeData, opacity = 1) {
+		const material = nodeData.sphere.material;
+		material.setValues({
+			opacity: opacity,
+			transparent: false
 		});
 	}
 
@@ -670,6 +636,9 @@ function Graph3D() {
 			});
 		});
 	}
+
+	// #endregion
+
 
 	chart.flow = function(hexColor) {
 		var nodeCount = env.graphData.nodeCount;
@@ -695,6 +664,16 @@ function Graph3D() {
 		});
 
 		this._paintLinks();
+	}
+
+
+	// #region Buffer updates: Link Colors
+
+	chart.colorLink = function(link, i, hexColor = 0x000000) {
+		this._paintLink(new THREE.Color(hexColor), i);
+		if (link === null && i === -1) {
+			this._refreshLinkPaint();
+		}
 	}
 
 	chart._paintLinks = function(color = null) {
@@ -770,6 +749,22 @@ function Graph3D() {
 		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
 		lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
 		lineGeometry.colorsNeedUpdate = true;
+	}
+
+	// #endregion
+
+
+	// #region Buffer updates: Link Visibility
+	chart.toggleEdges = function() {
+		var isVisible = env.edgesVisible;
+		chart.setVisibilityForEdges(!isVisible);
+	}
+
+	chart.setVisibilityForEdges = function(isVisible) {
+		env.edgesVisible = isVisible;
+		env.lineMesh.material.setValues({
+			visible: isVisible,
+		});
 	}
 
 	chart._hideLink = function(link, i) {
@@ -851,6 +846,11 @@ function Graph3D() {
 		lineGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( colors, 3 ) );
 	}
 
+	// #endregion
+
+
+	// #region Partites
+
 	chart.computePartites = function() {
 		var membershipCheckerGenerator = function(i) {
 			assert(typeof(i) === "number", "Need number to check against Z co-ordinate");
@@ -920,6 +920,11 @@ function Graph3D() {
 			}
 		});
 	}
+
+	// #endregion
+
+
+	// #region Time Lapse
 
 	chart._revealNodeAfterTime = function(node, millisecs) {
 		var nodeMaterial = node.data.sphere.material;
@@ -1017,10 +1022,57 @@ function Graph3D() {
 		}
 	}
 
+	// #endregion
+
+
+	// #region Click Node
+
+	function registerNodesWithRaycaster() {
+		if (env.graph != null) {
+			var spheres = [];
+			env.graph.forEachNode(node => {
+				spheres.push(node.data.sphere);
+			});
+
+			var intersects = env.raycaster.intersectObjects(spheres);
+			return intersects;
+		}
+
+		return null;
+	}
+
+	function clickNode() {
+		env.raycaster.setFromCamera(env.mouse, env.camera);
+		const intersects = registerNodesWithRaycaster();
+
+		if (intersects == null || intersects.length <= 0) {
+			return;
+		}
+
+		for (var i = 0; i < intersects.length; i += 1) {
+			var object = intersects[0].object;
+			if (!object.hasOwnProperty("nodeId") || !object.hasOwnProperty("name"))
+				continue;
+			
+			if (object.nodeId >= 0) {
+				const node = env.graph.getNode(object.nodeId);
+				if (chart._clickNodeCallback != null) {
+					chart._clickNodeCallback(node.data.id);
+				}
+				break;
+			}
+		}
+	}
+
 	chart._clickNodeCallback = null;
 	chart.setNodeCallback = function(clickNodeCallback) {
 		chart._clickNodeCallback = clickNodeCallback;
 	}
+
+	// #endregion
+
+
+	// #region Diagnostics
 
 	chart.diagnostics_getNode = function(nodeid) {
 		var node = env.graph.getNode(nodeid);
@@ -1048,6 +1100,11 @@ function Graph3D() {
 			outgoing : outgoingIds
 		}
 	}
+
+	// #endregion
+
+
+	// #region Overlays
 
 	var useOverlays = false;
 	var overlaidObjects = [];
@@ -1090,6 +1147,8 @@ function Graph3D() {
 			overlaidMaterials.pop();
 		}
 	}
+
+	// #endregion
 
 	return chart;
 }
