@@ -186,3 +186,7 @@ function timedShow() {
 	Graph.timedShow();
 	displayUserControlInfo("<p>Replay ;)</p>");
 }
+
+function clearOverlays() {
+	graphApi.clearOverlays();
+}

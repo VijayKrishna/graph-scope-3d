@@ -1049,5 +1049,47 @@ function Graph3D() {
 		}
 	}
 
+	var useOverlays = false;
+	var overlaidObjects = [];
+	var overlaidMaterials = [];
+	var overlaidGeometries = [];
+	chart._overLayLine = function(from, to, color) {
+		geometry = new THREE.Geometry();
+		geometry.vertices.push(from, to);
+
+		var newMaterial = new THREE.LineBasicMaterial({
+			color: color,
+			transparent: true,
+			linewidth: 3,
+			opacity: 0.5
+		});
+
+		var lineMesh = new THREE.Line(geometry, newMaterial);
+		overlaidGeometries.push(geometry);
+		overlaidMaterials.push(newMaterial);
+		overlaidObjects.push(lineMesh);
+		env.scene.add( lineMesh );
+	}
+
+	chart.clearOverlays = function() {
+		for (var i = 0; i < overlaidObjects.length; i += 1) {
+			env.scene.remove(overlaidObjects[i]);
+			overlaidMaterials[i].dispose();
+			overlaidGeometries[i].dispose();
+		}
+
+		while (overlaidObjects.length) {
+			overlaidObjects.pop();
+		}
+
+		while (overlaidGeometries.length) {
+			overlaidGeometries.pop();
+		}
+
+		while (overlaidMaterials.length) {
+			overlaidMaterials.pop();
+		}
+	}
+
 	return chart;
 }
