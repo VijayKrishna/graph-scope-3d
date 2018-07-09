@@ -1,6 +1,7 @@
 var ZERO = new THREE.Vector2(0, 0);
 var envDebug = null;
-var pointCount = 51;
+var pointCount = 15;
+
 
 function assert(condition = true, message = "Unknown Assert") {
 	if (typeof(condition) != "boolean") {
@@ -80,6 +81,31 @@ class Partite {
 // #endregion
 
 function Graph3D() {
+
+	var graphModel = null;
+	var pointsController = null;
+	var linksController = null;
+
+	chart.getGraphModel = function() {
+		if (graphModel == null) {
+			graphModel = new GraphModel(env.graph);
+		}
+		return graphModel;
+	}
+
+	chart.getPointsController = function() {
+		if (pointsController === null) {
+			pointsController = new PointsController(this.getGraphModel(), env.nodePoints.geometry);
+		}
+		return pointsController;
+	}
+
+	chart.getLinksController = function() {
+		if (linksController === null) {
+			linksController = new LinksController(this.getGraphModel(), env.lineMesh.geometry);
+		}
+		return linksController;
+	}
 
 	const CAMERA_DISTANCE2NODES_FACTOR = 150;
 
@@ -205,8 +231,11 @@ function Graph3D() {
 
 		// Add WebGL objects
 		drawNodes(graph);
-
 		drawEdges(graph);
+
+		graphModel = null;
+		pointsController = null;
+		linksController = null;
 
 		env.camera.lookAt(env.scene.position);
 		env.camera.position.z = Math.cbrt(Object.keys(env.graphData.nodes).length) * CAMERA_DISTANCE2NODES_FACTOR;
@@ -223,7 +252,6 @@ function Graph3D() {
 			}
 		}
 	}
-
 
 
 	// #region Draw Nodes
@@ -255,15 +283,9 @@ function Graph3D() {
 			positions.push(node.data.x);
 			positions.push(node.data.y);
 			positions.push(node.data.z);
-
-			// sphere.nodeId = node.data.id;
-			// sphere.name = node.data.label;
-			// sphere.position.x = node.data.x;
-			// sphere.position.y = node.data.y;
-			// sphere.position.z = node.data.z;
 		});
 
-		var sprite = new THREE.TextureLoader().load( 'disc.png' );
+		var sprite = new THREE.TextureLoader().load( 'disc2.png' );
 		var spheresGeometry = new THREE.BufferGeometry();
 		spheresGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
 		spheresGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
@@ -290,176 +312,6 @@ function Graph3D() {
 	// #endregion
 
 	// #region Draw Edges
-
-	function getDestinationCentroid(fromNodeId) {
-		var fromNode = env.graph.getNode(fromNodeId);
-		var links = env.graph.getLinks(fromNodeId);
-		var centeroid = new THREE.Vector3(0, 0, 0);
-		var count = 0;
-		for (var i = 0; i < links.length; i += 1) {
-			var link = links[i];
-			if (link.fromId != fromNodeId) {
-				continue;
-			}
-
-			var toNode = env.graph.getNode(link.toId);
-			var toPos = nodePosition(toNode);
-			centeroid.x += toPos.x;
-			centeroid.y += toPos.y;
-			centeroid.z += toPos.z;
-			count += 1;
-		}
-
-		centeroid.x = centeroid.x / count;
-		centeroid.y = centeroid.y / count;
-		centeroid.z = centeroid.z / count;
-		return centeroid;
-	}
-
-	function computeLinkSplineControlPoints(link) {
-		function computeGridPoints(maxBounds, minBounds) {
-			var midBounds = new THREE.Vector2(
-				(minBounds.x + maxBounds.x)/2, 
-				(minBounds.y + maxBounds.y)/2);
-			var dxBounds = maxBounds.x - minBounds.x;
-			var dyBounds = maxBounds.y - minBounds.y;
-
-			maxBounds.x = maxBounds.x - dxBounds/4;
-			maxBounds.y = maxBounds.y - dyBounds/4;
-			minBounds.x = minBounds.x + dxBounds/4;
-			minBounds.y = minBounds.y + dyBounds/4;
-			dxBounds = maxBounds.x - minBounds.x;
-			dyBounds = maxBounds.y - minBounds.y;
-
-			/*
-				|---dx--|
-				0---1---2 ---
-				|	|	|  |
-				3---4---5  dx
-				|	|	|  |
-				6---7---8 ---
-			*/
-			var gridPoints = [
-				minBounds,
-				new THREE.Vector2(minBounds.x + dxBounds/2, minBounds.y),
-				new THREE.Vector2(minBounds.x + dxBounds, minBounds.y),
-				new THREE.Vector2(minBounds.x, minBounds.y + dyBounds/2),
-				midBounds,
-				new THREE.Vector2(minBounds.x + dxBounds, minBounds.y + dyBounds/2),
-				new THREE.Vector2(minBounds.x, minBounds.y + dyBounds),
-				new THREE.Vector2(minBounds.x + dxBounds/2, minBounds.y + dyBounds),
-				maxBounds,
-			];
-
-			return gridPoints;
-		}
-
-		function getClosestGridPoint(gridPoints, point) {
-			var minDist = 0.0;
-			var retGridPoint = ZERO;
-			for (var i = 0; i < gridPoints.length; i += 1) {
-				var dist = 
-					((point.x - gridPoints[i].x) * (point.x - gridPoints[i].x))  
-					+ ((point.y - gridPoints[i].y) * (point.y - gridPoints[i].y));
-
-				if (i === 0) {
-					minDist = dist;
-					retGridPoint = gridPoints[i];
-					continue;
-				}
-
-				if (minDist > dist) {
-					minDist = dist;
-					retGridPoint = gridPoints[i];
-				}
-			}
-
-			return retGridPoint;
-		}
-
-		// need to cluster links, across partites
-		var fromNode = env.graph.getNode(link.fromId);
-		var toNode = env.graph.getNode(link.toId);
-		var fromPos = nodePosition(fromNode);
-		var toPos = nodePosition(toNode);
-		var fromPartite = Partite.getPartite(fromPos);
-		var toPartite = Partite.getPartite(toPos);
-
-		var minBounds = new THREE.Vector2(
-				Math.max(fromPartite.minBounds.x, toPartite.minBounds.x), 
-				Math.max(fromPartite.minBounds.y, toPartite.minBounds.y));
-		var maxBounds = new THREE.Vector2(
-			Math.min(fromPartite.maxBounds.x, toPartite.maxBounds.x), 
-			Math.min(fromPartite.maxBounds.y, toPartite.maxBounds.y));
-
-		if ((minBounds.x > maxBounds.x) || (minBounds.y > maxBounds.y)) {
-			minBounds.x = Math.min(fromPartite.minBounds.x, toPartite.minBounds.x);
-			minBounds.y = Math.min(fromPartite.minBounds.y, toPartite.minBounds.y);
-
-			maxBounds.x = Math.max(fromPartite.maxBounds.x, toPartite.maxBounds.x);
-			maxBounds.y = Math.max(fromPartite.maxBounds.y, toPartite.maxBounds.y);
-		}
-
-		var grid = computeGridPoints(maxBounds, minBounds);
-		var fromClosestGridPoint = getClosestGridPoint(grid, { x: fromPos.x, y: fromPos.y });
-		var toClosestGridPoint = getClosestGridPoint(grid, { x: toPos.x, y: toPos.y });
-
-		return [
-			new THREE.Vector3(fromClosestGridPoint.x, fromClosestGridPoint.y, fromPos.z + 25),
-			new THREE.Vector3(fromClosestGridPoint.x, fromClosestGridPoint.y, fromPos.z + 26),
-			new THREE.Vector3(toClosestGridPoint.x, toClosestGridPoint.y, toPos.z - 25),
-			new THREE.Vector3(toClosestGridPoint.x, toClosestGridPoint.y, toPos.z - 24)
-		]
-	}
-
-	function drawIntoSingleBraid(from, to) {
-		var fromCenteroid;
-		var fromPartite = Partite.getPartite(from);
-		if (fromPartite != null) {
-			fromCenteroid = fromPartite.getCenteroid();
-			fromCenteroid.z = from.z + 25;
-		} else {
-			fromCenteroid = new THREE.Vector3(10, 10, from.z + 25);
-		}
-
-		var toCenteroid;
-		var toPartite = Partite.getPartite(to);
-		if (toPartite != null) {
-			toCenteroid = toPartite.getCenteroid();
-			toCenteroid.z = from.z + 100;
-		} else {
-			toCenteroid = new THREE.Vector3(10, 10, from.z + 100);
-		}
-
-		var yup2 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z);
-		var yup3 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z + 1);
-		var yup8 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z);
-		var yup9 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z + 1);
-		
-		curve = new THREE.CatmullRomCurve3( [from, yup2, yup3, yup8, yup9, to] );
-	}
-
-	function drawBraidedLinks(link, from, to) {
-		var controlPoints = computeLinkSplineControlPoints(link);
-		var splineControlPoints = [];
-		splineControlPoints.push(from);
-		for (var i = 0; i < controlPoints.length; i += 1) {
-			splineControlPoints.push(controlPoints[i]);
-		}
-		splineControlPoints.push(to);
-		var curve = new THREE.CatmullRomCurve3(splineControlPoints);
-		return curve;
-	}
-
-	function drawStraightLink(from, to) {
-		return new THREE.CatmullRomCurve3( [from, to] );
-	}
-
-	function fetchPointsOffCurve(curve) {
-		curve.curveType = "chordal";
-		var points = curve.getPoints( pointCount - 1 );
-		return points;
-	}
 
 	function drawEdges(graph, partiteEdgeKind = 2) {
 		chart.computePartites();
@@ -493,25 +345,8 @@ function Graph3D() {
 				toNode.data.x, 
 				toNode.data.y, 
 				toNode.data.z );
-			
-			var curve = null;
-			var edgeKind = -1;
-			if (from.z != to.z) {
-				edgeKind = partiteEdgeKind;
-			}
 
-			switch (edgeKind) {
-				case 1:
-					curve = drawIntoSingleBraid(from, to);
-					break;
-				case 2:
-					curve = drawBraidedLinks(link, from, to);
-					break;
-				default:
-					curve = drawStraightLink(from, to);
-				}
-
-			var points = fetchPointsOffCurve(curve);
+			var points = EdgeBundler.drawBundledSpline(from, to);
 			positions.push(points[0].x, points[0].y, points[0].z);
 			index += 1;
 
@@ -618,81 +453,7 @@ function Graph3D() {
 	}
 
 
-	// #region Buffer updates: Node colors
-
-	chart.nodeColor = function(hexColor) {
-		env.graph.forEachNode(node => {
-			node.data.sphere.material.setValues({
-				color: hexColor,
-				transparent: false
-			});
-		});
-	}
-
-	chart.colorNode = function(nodeData, hexColor = 0x000000) {
-		const id = nodeData.id;
-
-		if (hexColor === env.bkgColor) {
-			nodeData.revealed = false;
-		}
-
-		var nodeGeometry = env.nodePoints.geometry;
-		var colors = nodeGeometry.getAttribute('color').array;
-		var blockSize = 3;
-		var offset = blockSize * id;
-		var color = new THREE.Color(hexColor);
-		// TODO: remove this color setter after we add code to access colors for a node, directly from the color buffer.
-		nodeData.color = color; 
-		var rgb = [color.r, color.g, color.b];
-
-		for (var j = 0; j < blockSize; j += 1) {
-			var index = offset + j;
-			colors[index] = rgb[index%3];
-		}
-		this._refreshNodePaint();
-	}
-
-	chart._refreshNodePaint = function() {
-		var nodeGeometry = env.nodePoints.geometry;
-		var colors = nodeGeometry.getAttribute('color').array;
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		nodeGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-		nodeGeometry.colorsNeedUpdate = true;
-	}
-
-	// #endregion
-
-
-	// #region Object Enumeration
-
-	chart.enumerateNodes = function(callOnNode, nodeIds = null) {
-		if (nodeIds === null) {
-			env.graph.forEachNode(node => {
-				callOnNode(node.data);
-			});
-			return;
-		}
-
-		nodeIds.forEach(function(id) {
-			const node = env.graph.getNode(id);
-			callOnNode(node.data);
-		});
-	}
-
-	chart.enumerateLinks = function(callOnLink) {
-		var i = 0;
-		env.graph.forEachLink(link => {
-			callOnLink(link, i);
-			i += 1;
-		});
-
-		callOnLink(null, -1);
-	}
-
-	// #endregion
-
-
-	// #region Buffer updates: Node Visibility
+	// #region Buffer updates: Node Opacity
 
 	chart.changeNodeOpacity = function(nodeData = null, opacity = 1) {
 		env.nodePoints.material.setValues({
@@ -701,93 +462,7 @@ function Graph3D() {
 		});
 	}
 
-	chart.toggleNodes = function() {
-		this.setVisibilityForNodes(!env.nodesVisible);
-		this.changeNodeOpacity(0.5);
-	}
-
-	chart.setVisibilityForNodes = function(isVisible) {
-		env.nodesVisible = isVisible;
-
-		env.nodePoints.material.setValues({
-			visible: env.nodesVisible
-		});
-	}
-
-	chart._hideNodes = function() {
-		var thisChart = this;
-		env.graph.forEachNode(node => {
-			thisChart._hideNode(node);
-		});
-	}
-
-	chart._hideNode = function(node) {
-		var i = node.data.id;
-		var nodeGeometry = env.nodePoints.geometry;
-		var positions = nodeGeometry.getAttribute('position').array;
-		var blockSize = 3;
-		var offset = blockSize * i;
-		var positionZero = [];
-		positionZero.push(0.0, 0.0, 0.0);
-
-		for (var j = 0; j < blockSize; j += 1) {
-			var index = offset + j;
-			positions[index] = positionZero[index%3];
-		}
-
-		this._refreshNodePostions();
-	}
-
-	chart._showNode = function(nodeData) {
-		var i = nodeData.id;
-		var nodeGeometry = env.nodePoints.geometry;
-		var positions = nodeGeometry.getAttribute('position').array;
-		var blockSize = 3;
-		var offset = blockSize * i;
-		var positionZero = [];
-		positionZero.push(nodeData.x, nodeData.y, nodeData.z);
-
-		for (var j = 0; j < blockSize; j += 1) {
-			var index = offset + j;
-			positions[index] = positionZero[index%3];
-		}
-
-		this._refreshNodePostions();
-	}
-
-	chart._refreshNodePostions = function() {
-		var nodeGeometry = env.nodePoints.geometry;
-		var positions = nodeGeometry.getAttribute('position').array;
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		nodeGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
-		nodeGeometry.colorsNeedUpdate = true;
-	}
-
 	// #endregion
-
-
-	chart.flow = function(hexColor) {
-		var nodeCount = env.graphData.nodeCount;
-		var startColor = new THREE.Color(hexColor);
-		var endColor = new THREE.Color(); // defaults to white
-		var diffColor = new THREE.Color((endColor.r - startColor.r)/nodeCount,
-										(endColor.g - startColor.g)/nodeCount,
-										(endColor.b - startColor.b)/nodeCount);
-
-		var i = 0;
-		env.graph.forEachNode(node => {
-			var nextR = startColor.r + (i * diffColor.r);
-			var nextG = startColor.g + (i * diffColor.g);
-			var nextB = startColor.b + (i * diffColor.b);
-			var nextColor = new THREE.Color(nextR, nextG, nextB);
-
-			this.colorNode(node.data, nextColor.getHex());
-
-			i += 1;
-		});
-
-		this._paintLinks();
-	}
 
 
 	// #region Buffer updates: Link Colors
@@ -808,7 +483,7 @@ function Graph3D() {
 					link.data.revealed = false;
 				}
 
-				for (var j = 0; j < 51; j += 1) {
+				for (var j = 0; j < pointCount; j += 1) {
 					colors.push(color.r);
 					colors.push(color.g);
 					colors.push(color.b);
@@ -824,12 +499,12 @@ function Graph3D() {
 			var toColor = toNode.data.color;
 
 			var stepColor = {
-				r: (toColor.r - fromColor.r)/51,
-				g: (toColor.g - fromColor.g)/51,
-				b: (toColor.b - fromColor.b)/51
+				r: (toColor.r - fromColor.r)/pointCount,
+				g: (toColor.g - fromColor.g)/pointCount,
+				b: (toColor.b - fromColor.b)/pointCount
 			};
 
-			for (var j = 0; j < 51; j += 1) {
+			for (var j = 0; j < pointCount; j += 1) {
 				colors.push(fromColor.r + (j * stepColor.r));
 				colors.push(fromColor.g + (j * stepColor.g));
 				colors.push(fromColor.b + (j * stepColor.b));
@@ -857,7 +532,7 @@ function Graph3D() {
 		}
 		var lineGeometry = env.lineMesh.geometry;
 		var colors = lineGeometry.getAttribute('color').array;
-		var blockSize = 51*3;
+		var blockSize = pointCount * 3;
 		var offset = blockSize * i;
 		var rgb = [color.r, color.g, color.b];
 
@@ -873,101 +548,6 @@ function Graph3D() {
 		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
 		lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
 		lineGeometry.colorsNeedUpdate = true;
-	}
-
-	// #endregion
-
-
-	// #region Buffer updates: Link Visibility
-	chart.toggleEdges = function() {
-		var isVisible = env.edgesVisible;
-		chart.setVisibilityForEdges(!isVisible);
-	}
-
-	chart.setVisibilityForEdges = function(isVisible) {
-		env.edgesVisible = isVisible;
-		env.lineMesh.material.setValues({
-			visible: isVisible,
-		});
-	}
-
-	chart._hideLink = function(link, i) {
-		link.data.revealed = false;
-		
-		var lineGeometry = env.lineMesh.geometry;
-		var positions = lineGeometry.getAttribute('position').array;
-		var blockSize = 51*3;
-		var offset = blockSize * i;
-		var positionZero = [];
-		positionZero.push(positions[offset], positions[offset + 1], positions[offset + 2]);
-
-		for (var j = 0; j < blockSize; j += 1) {
-			var index = offset + j;
-			positions[index] = positionZero[index%3];
-		}
-	}
-
-	chart._hideLinks = function() {
-		var thisChart = this;
-		var i = 0;
-		env.graph.forEachLink(link => {
-			thisChart._hideLink(link, i);
-			i += 1;
-		});
-		this._refreshLinkPostions();
-	}
-
-	chart._showLink = function(link, i) {
-		var fromNode = env.graph.getNode(link.fromId);
-		var toNode = env.graph.getNode(link.toId);
-
-		var from = new THREE.Vector3( 
-			fromNode.data.x, 
-			fromNode.data.y, 
-			fromNode.data.z );
-
-		var to = new THREE.Vector3( 
-			toNode.data.x, 
-			toNode.data.y, 
-			toNode.data.z );
-
-		// TODO refactor the switch in drawEdges into a function and call from here
-		var curve;
-		if (to.z === from.z) {
-			curve = drawStraightLink(from, to);
-		} else {
-			curve = drawBraidedLinks(link, from, to);
-		}
-
-		var points = fetchPointsOffCurve(curve);
-		var positionsT = [];
-		var blockSize = 51*3;
-		for (var x = 0; x < points.length; x += 1) {
-			var p = points[x];
-			positionsT.push(p.x);
-			positionsT.push(p.y);
-			positionsT.push(p.z);
-		}
-
-		assert(positionsT.length === blockSize, "positionsT's length:" + positionsT.length);
-
-		var lineGeometry = env.lineMesh.geometry;
-		var positions = lineGeometry.getAttribute('position').array;
-		var offset = blockSize * i;
-
-		var j = 0;
-
-		for (var j = 0; j < blockSize; j += 1) {
-			var index = offset + j;
-			positions[index] = positionsT[j];
-		}
-	}
-
-	chart._refreshLinkPostions = function() {
-		var lineGeometry = env.lineMesh.geometry;
-		var colors = lineGeometry.getAttribute('position').array;
-		// can we avoid creating a new THREE.Float32BufferAttribute() here?
-		lineGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( colors, 3 ) );
 	}
 
 	// #endregion
@@ -1010,70 +590,17 @@ function Graph3D() {
 		return partites;
 	}
 
-	chart.togglePartiteEdges = function() {
-		var isVisible = env.edgesVisible;
-		env.edgesVisible = !isVisible;
-
-		var i = 0;
-		env.graph.forEachLink(link => {
-			var fromNode = env.graph.getNode(link.fromId);
-			var toNode = env.graph.getNode(link.toId);
-
-			var fromZ = fromNode.data.z;
-			var toZ = toNode.data.z;
-
-			if (fromZ != toZ) {
-				this._showLink(link, i);
-			} else {
-				this._hideLink(link, i);
-			}
-			i += 1;
-		});
-
-		this._refreshLinkPostions();
-	}
-
 	// #endregion
 
 
 	// #region Time Lapse
 
-	chart._revealNodeAfterTime = function(node, millisecs) {
-		// var nodeMaterial = node.data.sphere.material;
-		// var isVisible = nodeMaterial.visible;
-		// if (isVisible) {
-		// 	return false;
-		// }
-
-		var thisChart = this;
-
-		setTimeout(function() {
-			thisChart._showNode(node.data);
-		}, millisecs);
-
-		return true;
-	}
-
-	chart._revealLinkAfterTime = function(link, millisecs) {
-		// if (link.data.revealed) {
-		// 	return false;
-		// }
-
-		var thisChart = this;
-
-		setTimeout(function() {
-			thisChart._showLink(link, link.data.id);
-			link.data.revealed = true;
-			thisChart._refreshLinkPostions();
-		}, millisecs);
-
-		return true;
-	}
-
 	chart.timedShow = function() {
 		var thisChart = this;
-		this._hideLinks();
-		this._hideNodes();
+		var linksController = this.getLinksController();
+		var pointsController = this.getPointsController();
+		linksController.hideLinks();
+		pointsController.hideNodes();
 		env.nodesVisible = true;
 		var timeslice = 4;
 		var i = 10;
@@ -1091,7 +618,7 @@ function Graph3D() {
 			}
 
 			console.log("visiting " + node.id);
-			var nodeRevealed = thisChart._revealNodeAfterTime(node, i);
+			var nodeRevealed = pointsController.revealNodeAfterTime(node, i);
 			if(nodeRevealed) {
 				i = i + timeslice;
 			}
@@ -1104,7 +631,7 @@ function Graph3D() {
 					continue;
 				}
 
-				var linkRevealed = thisChart._revealLinkAfterTime(link, i);
+				var linkRevealed = linksController.revealLinkAfterTime(link, i);
 				if (linkRevealed) {
 					i += timeslice;
 				}
@@ -1119,7 +646,7 @@ function Graph3D() {
 					stack.push(to);
 				}
 					
-				var anotherNodeRevealed = thisChart._revealNodeAfterTime(to, i);
+				var anotherNodeRevealed = pointsController.revealNodeAfterTime(to, i);
 				if (anotherNodeRevealed) {
 					i += timeslice;
 				}
@@ -1183,25 +710,64 @@ function Graph3D() {
 	// #endregion
 
 
-	// #region Diagnostics
+	return chart;
+}
 
-	chart.diagnostics_getNode = function(nodeid) {
-		var node = env.graph.getNode(nodeid);
-		return node.data;
+class GraphModel {
+	constructor(_graph) {
+		this.graph = _graph;
 	}
 
-	chart.diagnostics_getNeighboringNodes = function(nodeid) {
-		var links = env.graph.getLinks(nodeid);
+	getNode(nodeId) {
+		return this.graph.getNode(nodeId);
+	}
+
+	getNodeData(nodeId) {
+		return this.getNode(nodeId).data;
+	}
+
+	getNodeCount() {
+		return this.graph.getNodesCount();
+	}
+
+	enumerateNodes(callOnNode, finishEnumeration, nodeIds = null) {
+		if (nodeIds != null && Array.isArray(nodeIds) && nodeIds.length > 0) {
+			var dis = this;
+			nodeIds.forEach(function(id) {
+				const node = dis.graph.getNode(id);
+				callOnNode(node.data);
+			});
+		} else {
+			this.graph.forEachNode(node => {
+				callOnNode(node.data);
+			});
+		}
+
+		finishEnumeration();
+	}
+
+	enumerateLinks(callOnLink, finishEnumeration) {
+		var i = 0;
+		this.graph.forEachLink(link => {
+			callOnLink(i, link);
+			i += 1;
+		});
+
+		finishEnumeration();
+	}
+
+	getNeighboringNodes(nodeId) {
+		var links = this.graph.getLinks(nodeId);
 		var incomingIds = [];
 		var outgoingIds = [];
 
 		for (var i = 0; i < links.length; i += 1) {
 			var link = links[i];
-			if (link.fromId === nodeid) {
+			if (link.fromId === nodeId) {
 				outgoingIds.push(link.toId);
 			}
 
-			if (link.toId === nodeid) {
+			if (link.toId === nodeId) {
 				incomingIds.push(link.fromId);
 			}
 		}
@@ -1211,17 +777,22 @@ function Graph3D() {
 			outgoing : outgoingIds
 		}
 	}
+}
 
-	// #endregion
+/**
+ * Adds objects to a THREE.Scene.
+ */
+class Overlays {
+	constructor(_scene) {
+		this.scene = _scene;
+		this.useOverlays = false;
+		this.overlaidObjects = [];
+		this.overlaidMaterials = [];
+		this.overlaidGeometries = [];
+	}
 
 
-	// #region Overlays
-
-	var useOverlays = false;
-	var overlaidObjects = [];
-	var overlaidMaterials = [];
-	var overlaidGeometries = [];
-	chart._overLayLine = function(from, to, color) {
+	overLayLine(from, to, color) {
 		geometry = new THREE.Geometry();
 		geometry.vertices.push(from, to);
 
@@ -1236,30 +807,544 @@ function Graph3D() {
 		overlaidGeometries.push(geometry);
 		overlaidMaterials.push(newMaterial);
 		overlaidObjects.push(lineMesh);
-		env.scene.add( lineMesh );
+		this.scene.add( lineMesh );
 	}
 
-	chart.clearOverlays = function() {
+	clearOverlays() {
+		function emptyArray(array) {
+			while (array.length) {
+				array.pop();
+			}
+		}
+
 		for (var i = 0; i < overlaidObjects.length; i += 1) {
-			env.scene.remove(overlaidObjects[i]);
+			this.scene.remove(overlaidObjects[i]);
 			overlaidMaterials[i].dispose();
 			overlaidGeometries[i].dispose();
 		}
 
-		while (overlaidObjects.length) {
-			overlaidObjects.pop();
+		emptyArray(overlaidObjects);
+		emptyArray(overlaidGeometries);
+		emptyArray(overlaidMaterials);
+	}
+
+}
+
+
+class LinksController {
+	constructor(_graphModel, _linksGeometry) {
+		this.graphModel = _graphModel; // model
+
+		// view
+		this.linksGeometry = _linksGeometry;
+		this.toggleVisibility = true;
+		this.togglePartiteVisibility = true;
+	}
+
+	gradientColorLinks(color = null) {
+		var colors = [];
+		var dis = this;
+		this.graphModel.enumerateLinks(function(i, link) {
+			const pointCount = EdgeBundler.POINT_COUNT;
+			if (color != null && color != undefined) {
+				for (var j = 0; j < pointCount; j += 1) {
+					colors.push(color.r);
+					colors.push(color.g);
+					colors.push(color.b);
+				}
+				return;
+			}
+
+			var fromNode = dis.graphModel.getNode(link.fromId);
+			var toNode = dis.graphModel.getNode(link.toId);
+
+			// TODO: fetch color directly from color buffer; do not store on the node itself.
+			var fromColor = fromNode.data.color;
+			var toColor = toNode.data.color;
+
+			var stepColor = {
+				r: (toColor.r - fromColor.r)/pointCount,
+				g: (toColor.g - fromColor.g)/pointCount,
+				b: (toColor.b - fromColor.b)/pointCount
+			};
+
+			for (var j = 0; j < pointCount; j += 1) {
+				colors.push(fromColor.r + (j * stepColor.r));
+				colors.push(fromColor.g + (j * stepColor.g));
+				colors.push(fromColor.b + (j * stepColor.b));
+			}
+		}, function() {
+			dis.linksGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+			dis.linksGeometry.colorsNeedUpdate = true;
+		});
+	}
+
+	colorLinks(colorFunction) {
+		var dis = this;
+		this.graphModel.enumerateLinks(function(i, link) {
+			var color = colorFunction(link);
+			dis._colorLink(i, new THREE.Color(color));
+		}, function() {
+			dis._refreshLinkPaints();
+		});
+	}
+
+	/**
+	 * @param {Number} i 
+	 * @param {THREE.Color} color 
+	 */
+	_colorLink(i, color = null) {
+		var colors = this.linksGeometry.getAttribute('color').array;
+		var blockSize = EdgeBundler.POINT_COUNT * 3;
+		var offset = blockSize * i;
+		var rgb = [color.r, color.g, color.b];
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			colors[index] = rgb[index%3];
+		}
+	}
+
+	_refreshLinkPaints() {
+		var colors = this.linksGeometry.getAttribute('color').array;
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		this.linksGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+		this.linksGeometry.colorsNeedUpdate = true;
+	}
+
+
+	// #region Link Visibility
+
+	toggleLinks() {
+		if (this.toggleVisibility) {
+			this.hideLinks();
+			this.toggleVisibility = false;
+		} else {
+			this.showLinks();
+			this.toggleVisibility = true;
+		}
+	}
+
+	togglePartiteLinks() {
+		var dis = this;
+		this.graphModel.enumerateLinks(function(i, link) {
+			var fromNode = dis.graphModel.getNode(link.fromId);
+			var toNode = dis.graphModel.getNode(link.toId);
+
+			var fromZ = fromNode.data.z;
+			var toZ = toNode.data.z;
+
+			if (fromZ != toZ || !dis.togglePartiteVisibility) {
+				dis._showLink(i, link);
+			} else {
+				dis._hideLink(i, link);
+			}
+		}, function() {
+			dis._refreshLinkPostions();
+		});
+
+		dis.togglePartiteVisibility = !dis.togglePartiteVisibility;
+	}
+
+	hideLinks() {
+		var dis = this;
+		this.graphModel.enumerateLinks(function(i) {
+			dis._hideLink(i);
+		}, function() {
+			dis._refreshLinkPostions();
+		});
+	}
+
+	showLinks() {
+		var dis = this;
+		this.graphModel.enumerateLinks(function(i, link) {
+			dis._showLink(i, link);
+		}, function() {
+			dis._refreshLinkPostions();
+		});
+	}
+
+	revealLinkAfterTime(link, millisecs) {
+		var dis = this;
+
+		setTimeout(function() {
+			dis._showLink(link.data.id, link);
+			dis._refreshLinkPostions();
+		}, millisecs);
+
+		return true;
+	}
+
+	_showLink(i, link) {
+		var fromNode = this.graphModel.getNode(link.fromId);
+		var toNode = this.graphModel.getNode(link.toId);
+
+		var from = new THREE.Vector3(fromNode.data.x, fromNode.data.y, fromNode.data.z);
+		var to = new THREE.Vector3(toNode.data.x, toNode.data.y, toNode.data.z);
+
+		// TODO refactor the switch in drawEdges into a function and call from here
+		var points = EdgeBundler.drawBundledSpline(from, to);
+		var positionsT = [];
+		var blockSize = EdgeBundler.POINT_COUNT * 3;
+		for (var x = 0; x < points.length; x += 1) {
+			var p = points[x];
+			positionsT.push(p.x);
+			positionsT.push(p.y);
+			positionsT.push(p.z);
 		}
 
-		while (overlaidGeometries.length) {
-			overlaidGeometries.pop();
-		}
+		assert(positionsT.length === blockSize, "positionsT's length:" + positionsT.length);
 
-		while (overlaidMaterials.length) {
-			overlaidMaterials.pop();
-		}
+		this._updateLinkPositions(i, positionsT);
+	}
+
+	_hideLink(i) {
+		var newPositions = [0, 0, 0];
+		this._updateLinkPositions(i, newPositions);
 	}
 
 	// #endregion
 
-	return chart;
+	_updateLinkPositions(iLink, newPositions) {
+		var positions = this.linksGeometry.getAttribute('position').array;
+		var blockSize = EdgeBundler.POINT_COUNT * 3;
+		var offset = blockSize * iLink;
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			positions[index] = newPositions[index % newPositions.length];
+		}
+	}
+
+	_refreshLinkPostions() {
+		var position = this.linksGeometry.getAttribute('position').array;
+		// can we avoid creating a new THREE.Float32BufferAttribute() here?
+		this.linksGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( position, 3 ) );
+	}
+}
+
+
+class PointsController { // ViewController
+	constructor(_graphModel, _pointsGeometry) {
+		this.graphModel = _graphModel; // model
+
+		// view
+		this.pointsGeometry = _pointsGeometry;
+		this.toggleVisibility = true;
+	}
+
+	// #region Colors
+
+	colorNodes(colorFunction, nodeIds = null) {
+		var thisController = this;
+		this.graphModel.enumerateNodes(function(nodeData) {
+			var hexColor = colorFunction(nodeData);
+			thisController.colorNode(nodeData, hexColor);
+		}, function() {
+			thisController._refreshNodePaint();
+		}, nodeIds);
+	}
+
+	gradientColorNodes(hexColor) {
+		var nodeCount = this.graphModel.getNodeCount();
+		var startColor = new THREE.Color(hexColor);
+		var endColor = new THREE.Color(); // defaults to white
+		var diffColor = new THREE.Color((endColor.r - startColor.r)/nodeCount,
+										(endColor.g - startColor.g)/nodeCount,
+										(endColor.b - startColor.b)/nodeCount);
+
+		this.colorNodes(function(nodeData) {
+			var i = nodeData.id;
+			var nextR = startColor.r + (i * diffColor.r);
+			var nextG = startColor.g + (i * diffColor.g);
+			var nextB = startColor.b + (i * diffColor.b);
+			var nextColor = new THREE.Color(nextR, nextG, nextB);
+			return nextColor;
+		});
+	}
+
+	colorNode(nodeData, hexColor = 0x000000) {
+		const blockSize = 3;
+		const offset = blockSize * nodeData.id;
+		var color = new THREE.Color(hexColor);
+		var rgb = [color.r, color.g, color.b];
+		// TODO: remove this color setter after we add code to access colors for a node, directly from the color buffer.
+		nodeData.color = color; 
+
+		var colors = this.pointsGeometry.getAttribute('color').array;
+
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			colors[index] = rgb[index%3];
+		}
+	}
+
+	_refreshNodePaint() {
+		var colors = this.pointsGeometry.getAttribute('color').array;
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		this.pointsGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+		this.pointsGeometry.colorsNeedUpdate = true; // TODO: figure out why we need this call. Seems like we can do without it.
+	}
+
+	// #endregion
+
+	// #region Visibility (via Position)
+
+	toggleNodes() {
+		if (this.toggleVisibility) {
+			this.hideNodes();
+			this.toggleVisibility = false;
+		} else {
+			this.showNodes();
+			this.toggleVisibility = true;
+		}
+	}
+
+	hideNodes() {
+		var dis = this;
+		this.graphModel.enumerateNodes(function(nodeData) { 
+			dis.hideNode(nodeData);
+		}, function() { 
+			dis._refreshPointPostions();
+		});
+	}
+
+	showNodes() {
+		var dis = this;
+		this.graphModel.enumerateNodes(function(nodeData) { 
+			dis.showNode(nodeData);
+		}, function() { 
+			dis._refreshPointPostions() 
+		});
+	}
+
+	revealNodeAfterTime(node, millisecs) {
+		var dis = this;
+
+		setTimeout(function() {
+			dis.showNode(node.data);
+			dis._refreshPointPostions();
+		}, millisecs);
+
+		return true;
+	}
+
+	showNode(nodeData) {
+		var newPosition = [nodeData.x, nodeData.y, nodeData.z];
+		this._updateNodePosition(nodeData.id, newPosition)
+	}
+
+	hideNode(nodeData) {
+		var newPosition = [undefined, undefined, undefined];
+		this._updateNodePosition(nodeData.id, newPosition)
+	}
+
+	// #endregion
+
+	// #region Position
+
+
+	_updateNodePosition(nodeId, newPosition) {
+		var positions = this.pointsGeometry.getAttribute('position').array;
+		const blockSize = 3;
+		var offset = blockSize * nodeId;
+		for (var j = 0; j < blockSize; j += 1) {
+			var index = offset + j;
+			positions[index] = newPosition[index % 3];
+		}
+	}
+
+	_refreshPointPostions() {
+		var positions = this.pointsGeometry.getAttribute('position').array;
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		this.pointsGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
+	}
+
+	// #endregion
+}
+
+
+class EdgeBundler {
+
+	static drawBundledSpline(from, to) {
+		var curve = null;
+		if (to.z === from.z) {
+			curve = EdgeBundler.drawStraightLink(from, to);
+		} else {
+			curve = EdgeBundler.drawBraidedLinks(from, to);
+		}
+
+		var points = EdgeBundler.fetchPointsOffCurve(curve);
+		return points;
+	}
+
+	static drawBraidedLinks(from, to) {
+		var controlPoints = EdgeBundler._computeLinkSplineControlPoints(from, to);
+		var splineControlPoints = [];
+		splineControlPoints.push(from);
+		for (var i = 0; i < controlPoints.length; i += 1) {
+			splineControlPoints.push(controlPoints[i]);
+		}
+		splineControlPoints.push(to);
+		var curve = new THREE.CatmullRomCurve3(splineControlPoints);
+		return curve;
+	}
+
+	static fetchPointsOffCurve(curve) {
+		curve.curveType = "chordal";
+		var points = curve.getPoints( pointCount - 1 );
+		return points;
+	}
+
+	static drawStraightLink(from, to) {
+		return new THREE.CatmullRomCurve3( [from, to] );
+	}
+
+	static get POINT_COUNT() {
+		return 15;
+	}
+
+	static getDestinationCentroid(fromNodeId) {
+		var fromNode = env.graph.getNode(fromNodeId);
+		var links = env.graph.getLinks(fromNodeId);
+		var centeroid = new THREE.Vector3(0, 0, 0);
+		var count = 0;
+		for (var i = 0; i < links.length; i += 1) {
+			var link = links[i];
+			if (link.fromId != fromNodeId) {
+				continue;
+			}
+
+			var toNode = env.graph.getNode(link.toId);
+			var toPos = nodePosition(toNode);
+			centeroid.x += toPos.x;
+			centeroid.y += toPos.y;
+			centeroid.z += toPos.z;
+			count += 1;
+		}
+
+		centeroid.x = centeroid.x / count;
+		centeroid.y = centeroid.y / count;
+		centeroid.z = centeroid.z / count;
+		return centeroid;
+	}
+
+	static drawIntoSingleBraid(from, to) {
+		var fromCenteroid;
+		var fromPartite = Partite.getPartite(from);
+		if (fromPartite != null) {
+			fromCenteroid = fromPartite.getCenteroid();
+			fromCenteroid.z = from.z + 25;
+		} else {
+			fromCenteroid = new THREE.Vector3(10, 10, from.z + 25);
+		}
+
+		var toCenteroid;
+		var toPartite = Partite.getPartite(to);
+		if (toPartite != null) {
+			toCenteroid = toPartite.getCenteroid();
+			toCenteroid.z = from.z + 100;
+		} else {
+			toCenteroid = new THREE.Vector3(10, 10, from.z + 100);
+		}
+
+		var yup2 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z);
+		var yup3 = new THREE.Vector3(fromCenteroid.x, fromCenteroid.y, fromCenteroid.z + 1);
+		var yup8 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z);
+		var yup9 = new THREE.Vector3(toCenteroid.x, toCenteroid.y, toCenteroid.z + 1);
+		
+		curve = new THREE.CatmullRomCurve3( [from, yup2, yup3, yup8, yup9, to] );
+	}
+
+	static _computeLinkSplineControlPoints(fromPos, toPos) {
+		function computeGridPoints(maxBounds, minBounds) {
+			var midBounds = new THREE.Vector2(
+				(minBounds.x + maxBounds.x)/2, 
+				(minBounds.y + maxBounds.y)/2);
+			var dxBounds = maxBounds.x - minBounds.x;
+			var dyBounds = maxBounds.y - minBounds.y;
+
+			maxBounds.x = maxBounds.x - dxBounds/4;
+			maxBounds.y = maxBounds.y - dyBounds/4;
+			minBounds.x = minBounds.x + dxBounds/4;
+			minBounds.y = minBounds.y + dyBounds/4;
+			dxBounds = maxBounds.x - minBounds.x;
+			dyBounds = maxBounds.y - minBounds.y;
+
+			/*
+				|---dx--|
+				0---1---2 ---
+				|	|	|  |
+				3---4---5  dx
+				|	|	|  |
+				6---7---8 ---
+			*/
+			var gridPoints = [
+				minBounds,
+				new THREE.Vector2(minBounds.x + dxBounds/2, minBounds.y),
+				new THREE.Vector2(minBounds.x + dxBounds, minBounds.y),
+				new THREE.Vector2(minBounds.x, minBounds.y + dyBounds/2),
+				midBounds,
+				new THREE.Vector2(minBounds.x + dxBounds, minBounds.y + dyBounds/2),
+				new THREE.Vector2(minBounds.x, minBounds.y + dyBounds),
+				new THREE.Vector2(minBounds.x + dxBounds/2, minBounds.y + dyBounds),
+				maxBounds,
+			];
+
+			return gridPoints;
+		}
+
+		function getClosestGridPoint(gridPoints, point) {
+			var minDist = 0.0;
+			var retGridPoint = ZERO;
+			for (var i = 0; i < gridPoints.length; i += 1) {
+				var dist = 
+					((point.x - gridPoints[i].x) * (point.x - gridPoints[i].x))  
+					+ ((point.y - gridPoints[i].y) * (point.y - gridPoints[i].y));
+
+				if (i === 0) {
+					minDist = dist;
+					retGridPoint = gridPoints[i];
+					continue;
+				}
+
+				if (minDist > dist) {
+					minDist = dist;
+					retGridPoint = gridPoints[i];
+				}
+			}
+
+			return retGridPoint;
+		}
+
+		// need to cluster links, across partites
+		var fromPartite = Partite.getPartite(fromPos);
+		var toPartite = Partite.getPartite(toPos);
+
+		var minBounds = new THREE.Vector2(
+				Math.max(fromPartite.minBounds.x, toPartite.minBounds.x), 
+				Math.max(fromPartite.minBounds.y, toPartite.minBounds.y));
+		var maxBounds = new THREE.Vector2(
+			Math.min(fromPartite.maxBounds.x, toPartite.maxBounds.x), 
+			Math.min(fromPartite.maxBounds.y, toPartite.maxBounds.y));
+
+		if ((minBounds.x > maxBounds.x) || (minBounds.y > maxBounds.y)) {
+			minBounds.x = Math.min(fromPartite.minBounds.x, toPartite.minBounds.x);
+			minBounds.y = Math.min(fromPartite.minBounds.y, toPartite.minBounds.y);
+
+			maxBounds.x = Math.max(fromPartite.maxBounds.x, toPartite.maxBounds.x);
+			maxBounds.y = Math.max(fromPartite.maxBounds.y, toPartite.maxBounds.y);
+		}
+
+		var grid = computeGridPoints(maxBounds, minBounds);
+		var fromClosestGridPoint = getClosestGridPoint(grid, { x: fromPos.x, y: fromPos.y });
+		var toClosestGridPoint = getClosestGridPoint(grid, { x: toPos.x, y: toPos.y });
+
+		return [
+			new THREE.Vector3(fromClosestGridPoint.x, fromClosestGridPoint.y, fromPos.z + 25),
+			new THREE.Vector3(fromClosestGridPoint.x, fromClosestGridPoint.y, fromPos.z + 26),
+			new THREE.Vector3(toClosestGridPoint.x, toClosestGridPoint.y, toPos.z - 25),
+			new THREE.Vector3(toClosestGridPoint.x, toClosestGridPoint.y, toPos.z - 24)
+		]
+	}
+
 }

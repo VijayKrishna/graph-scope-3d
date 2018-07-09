@@ -165,7 +165,7 @@ function cascaseNodes() {
 	var color = parseInt(colorString, 16);
 
 	// TODO: move Graph.flow to graphAPI
-	Graph.flow(color);
+	graphApi.flow(color);
 	displayUserControlInfo("<p>Cascading from: #" + colorString.toUpperCase());
 }
 

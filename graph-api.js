@@ -29,37 +29,26 @@ class GraphApi {
     }
 
     toggleEdges(partites = false) {
+        var linksController = this.visualGraph.getLinksController();
         if (partites) {
-            if (this.verify("togglePartiteEdges")) {
-                this.visualGraph.togglePartiteEdges();
-            }
+            linksController.togglePartiteLinks();
+            // if (this.verify("togglePartiteEdges")) {
+            //     this.visualGraph.togglePartiteEdges();
+            // }
         } else {
-            if (this.verify("toggleEdges")) {
-                this.visualGraph.toggleEdges();
-            }
+            linksController.toggleLinks();
         }
         
     }
 
     toggleNodes() {
-        if (!this.verify("toggleNodes")) {
-            return;
-        }
-
-        this.visualGraph.toggleNodes();
+        var pointsController = this.visualGraph.getPointsController();
+        pointsController.toggleNodes();
     }
 
     colorAllEdges(colorFunction) {
-        if (!this.verify("enumerateLinks")
-            || !this.verify("colorLink")) {
-            return;
-        }
-
-        var thisVisualGraph = this.visualGraph;
-        thisVisualGraph.enumerateLinks(function(link, i) {
-            const hexColor = colorFunction(link);
-            thisVisualGraph.colorLink(link, i, hexColor);
-        });
+        var linksController = this.visualGraph.getLinksController();
+        linksController.colorLinks(colorFunction);
     }
 
     /*
@@ -69,17 +58,9 @@ class GraphApi {
         Mode2: function will auto-gen a color gradient, and distribute the nodeSubset across the color gradient
         Mode3a: heatmap, showing time lapse
     */
-    colorAllNodes(colorFunction, nodeIds) {
-        if (!this.verify("enumerateNodes")
-            || !this.verify("colorNode")) {
-            return;
-        }
-
-        var thisVisualGraph = this.visualGraph;
-        thisVisualGraph.enumerateNodes(function(node) {
-            const hexColor = colorFunction(node);
-            thisVisualGraph.colorNode(node, hexColor);
-        }, nodeIds);
+    colorAllNodes(colorFunction, nodeIds = null) {
+        var pointsController = this.visualGraph.getPointsController();
+        pointsController.colorNodes(colorFunction, nodeIds);
     }
 
     changeOpacityForNodes(opacityFunction, nodeIds) {
@@ -106,8 +87,9 @@ class GraphApi {
      * @returns
      * @memberof GraphApi
      */
-    diagnostics_getNode(nodeid) {
-        return this.visualGraph.diagnostics_getNode(nodeid);
+    diagnostics_getNode(nodeId) {
+        var graphModel = this.visualGraph.getGraphModel();
+        return graphModel.getNodeData(nodeId);
     }
 
     /**
@@ -117,16 +99,26 @@ class GraphApi {
      * @returns
      * @memberof GraphApi
      */
-    diagnostics_getNeighboringNodes(nodeid) {
-        return this.visualGraph.diagnostics_getNeighboringNodes(nodeid);
+    diagnostics_getNeighboringNodes(nodeId) {
+        var graphModel = this.visualGraph.getGraphModel();
+        return graphModel.getNeighboringNodes(nodeId);
     }
 
     clearOverlays() {
+        // todo: use overlays class
         this.visualGraph.clearOverlays();
     }
 
     resizeAllNodes(nodeSubset, sizeFunction) {
         // TODO
+    }
+
+    flow(hexColor = 0x000000) {
+        var pointsController = this.visualGraph.getPointsController();
+        var linksController = this.visualGraph.getLinksController();
+
+		pointsController.gradientColorNodes(hexColor);
+		linksController.gradientColorLinks();
     }
 
     // TODO: support for free from search of nodes

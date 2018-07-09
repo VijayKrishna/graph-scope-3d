@@ -1,4 +1,4 @@
-function getGraphDataSets(boom = false) {
+function getGraphDataSets() {
 
     // Color brewer paired set
     const colors = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928'];
@@ -59,8 +59,5 @@ function getGraphDataSets(boom = false) {
         return data;
     }
 
-    if (boom) {
-        return [dataFuntion(p[p.length - 1])];
-    }
     return [dataFuntion(p[p.length - 2])];
 }
