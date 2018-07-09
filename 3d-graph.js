@@ -85,6 +85,7 @@ function Graph3D() {
 	var graphModel = null;
 	var pointsController = null;
 	var linksController = null;
+	var timelapseController = null;
 
 	chart.getGraphModel = function() {
 		if (graphModel == null) {
@@ -106,6 +107,14 @@ function Graph3D() {
 		}
 		return linksController;
 	}
+
+	chart.getTimelapseController = function() {
+		if (timelapseController === null) {
+			timelapseController = new TimelapseController(this.getGraphModel(), this.getLinksController(), this.getPointsController());
+		}
+		return timelapseController;
+	}
+
 
 	const CAMERA_DISTANCE2NODES_FACTOR = 150;
 
@@ -255,14 +264,6 @@ function Graph3D() {
 
 
 	// #region Draw Nodes
-
-	function nodePosition(node) {
-		return {
-			x : node.data.x,
-			y : node.data.y,
-			z : node.data.z
-		};
-	}
 
 	function drawNodes(graph) {
 		// var sphereGeometry = new THREE.SphereGeometry();
@@ -592,73 +593,6 @@ function Graph3D() {
 
 	// #endregion
 
-
-	// #region Time Lapse
-
-	chart.timedShow = function() {
-		var thisChart = this;
-		var linksController = this.getLinksController();
-		var pointsController = this.getPointsController();
-		linksController.hideLinks();
-		pointsController.hideNodes();
-		env.nodesVisible = true;
-		var timeslice = 4;
-		var i = 10;
-
-		var visitedNodes = [];
-		var stack = [];
-
-		stack.push(env.graph.getNode(0));
-
-		while(stack.length > 0) {
-			var node = stack.pop();
-
-			if (visitedNodes.indexOf(node.id) != -1) {
-				continue;
-			}
-
-			console.log("visiting " + node.id);
-			var nodeRevealed = pointsController.revealNodeAfterTime(node, i);
-			if(nodeRevealed) {
-				i = i + timeslice;
-			}
-			var links = env.graph.getLinks(node.id);
-
-			for (var l = 0; l < links.length; l += 1) {
-				var link = links[l];
-
-				if (link.fromId != node.id) {
-					continue;
-				}
-
-				var linkRevealed = linksController.revealLinkAfterTime(link, i);
-				if (linkRevealed) {
-					i += timeslice;
-				}
-
-				var to = env.graph.getNode(link.toId);
-				// console.log("going from " + node.id + " to " + to.id);
-
-				if (to === node)
-					continue;
-
-				if (visitedNodes.indexOf(to.id) === -1) { // plan on visiting only if you have not visited it before
-					stack.push(to);
-				}
-					
-				var anotherNodeRevealed = pointsController.revealNodeAfterTime(to, i);
-				if (anotherNodeRevealed) {
-					i += timeslice;
-				}
-			}
-
-			visitedNodes.push(node.id);
-		}
-	}
-
-	// #endregion
-
-
 	// #region Click Node
 
 	function registerNodesWithRaycaster() {
@@ -730,6 +664,10 @@ class GraphModel {
 		return this.graph.getNodesCount();
 	}
 
+	getLinks(nodeId) {
+		return this.graph.getLinks(nodeId);
+	}
+
 	enumerateNodes(callOnNode, finishEnumeration, nodeIds = null) {
 		if (nodeIds != null && Array.isArray(nodeIds) && nodeIds.length > 0) {
 			var dis = this;
@@ -743,7 +681,8 @@ class GraphModel {
 			});
 		}
 
-		finishEnumeration();
+		if (finishEnumeration != null && finishEnumeration != undefined)
+			finishEnumeration();
 	}
 
 	enumerateLinks(callOnLink, finishEnumeration) {
@@ -753,7 +692,8 @@ class GraphModel {
 			i += 1;
 		});
 
-		finishEnumeration();
+		if (finishEnumeration != null && finishEnumeration != undefined)
+			finishEnumeration();
 	}
 
 	getNeighboringNodes(nodeId) {
@@ -775,6 +715,72 @@ class GraphModel {
 		return {
 			incoming : incomingIds,
 			outgoing : outgoingIds
+		}
+	}
+}
+
+class TimelapseController {
+
+	constructor(graphModel, linksController, pointsController) {
+		this.graphModel = graphModel;
+		this.linksController = linksController;
+		this.pointsController = pointsController;
+	}
+
+	timeLapse() {
+		this.linksController.hideLinks();
+		this.pointsController.hideNodes();
+		var timeslice = 1;
+		var i = 10;
+
+		var visitedNodes = [];
+		var stack = [];
+
+		stack.push(this.graphModel.getNode(0));
+
+		while(stack.length > 0) {
+			var node = stack.pop();
+
+			if (visitedNodes.indexOf(node.id) != -1) {
+				continue;
+			}
+
+			console.log("visiting " + node.id);
+			var nodeRevealed = this.pointsController.revealNodeAfterTime(node, i);
+			if(nodeRevealed) {
+				i = i + timeslice;
+			}
+			var links = this.graphModel.getLinks(node.id);
+
+			for (var l = 0; l < links.length; l += 1) {
+				var link = links[l];
+
+				if (link.fromId != node.id) {
+					continue;
+				}
+
+				var linkRevealed = this.linksController.revealLinkAfterTime(link, i);
+				if (linkRevealed) {
+					i += timeslice;
+				}
+
+				var to = this.graphModel.getNode(link.toId);
+				// console.log("going from " + node.id + " to " + to.id);
+
+				if (to === node)
+					continue;
+
+				if (visitedNodes.indexOf(to.id) === -1) { // plan on visiting only if you have not visited it before
+					stack.push(to);
+				}
+					
+				var anotherNodeRevealed = this.pointsController.revealNodeAfterTime(to, i);
+				if (anotherNodeRevealed) {
+					i += timeslice;
+				}
+			}
+
+			visitedNodes.push(node.id);
 		}
 	}
 }

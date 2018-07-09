@@ -185,7 +185,7 @@ function togglePartiteEdges() {
 }
 
 function timedShow() {
-	Graph.timedShow();
+	graphApi.timeLapse();
 	displayUserControlInfo("<p>Replay ;)</p>");
 }
 

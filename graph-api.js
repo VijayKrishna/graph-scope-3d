@@ -121,5 +121,10 @@ class GraphApi {
 		linksController.gradientColorLinks();
     }
 
+    timeLapse() {
+        var timeLapseController = this.visualGraph.getTimelapseController();
+        timeLapseController.timeLapse();
+    }
+
     // TODO: support for free from search of nodes
 };
