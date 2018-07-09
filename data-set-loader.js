@@ -33,7 +33,6 @@ function getGraphDataSets() {
                 data.nodes.forEach((node, i) => {
                     // console.log(node);
                     node.id = i;//node.id;
-    
                     node.groupLabel =  node.label;
                     node.group = 1; // Number(node.group.split(' ')[1]) || 0;
                     nodes[node.id] = node;
@@ -51,7 +50,8 @@ function getGraphDataSets() {
                         links: data.links.map(link => [link.startId-1, link.endId-1]),
                         nodeCount: nodeCount
                     })
-                    .bkgColor(params.color);
+                    .bkgColor(params.color)
+                    .dataLoadCompletedCallback();
                 dataLoadCompleteCallback();
             });
         };

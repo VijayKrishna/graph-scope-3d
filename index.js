@@ -39,8 +39,6 @@ var displayDiagnosticInfo = function(thingsToDisplay) {
 
 	for (var i = 0; i < thingsToDisplay.length; i += 1) {
 		var thing = thingsToDisplay[i];
-
-
 		const partiteInfo = document.createElement('p');
 		partiteInfo.innerHTML = thing[0] + ((thing.length >= 3) ? thing[2] : " : ") + thing[1];
 		diagnosisPanel.appendChild(partiteInfo);

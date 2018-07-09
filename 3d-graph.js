@@ -13,6 +13,46 @@ function assert(condition = true, message = "Unknown Assert") {
 	}
 }
 
+// #region Graph Model and XYZControllers
+
+var graphModel = null;
+var pointsController = null;
+var linksController = null;
+var timelapseController = null;
+
+var _getGraphModel = function(graph) {
+	if (graphModel == null) {
+		graphModel = new GraphModel(graph);
+	}
+	return graphModel;
+}
+
+var _getPointsController = function(graph, pointsGeometry) {
+	if (pointsController === null) {
+		pointsController = new PointsController(_getGraphModel(graph), pointsGeometry);
+	}
+	return pointsController;
+}
+
+var _getLinksController = function(graph, linksGeometry) {
+	if (linksController === null) {
+		linksController = new LinksController(_getGraphModel(graph), linksGeometry);
+	}
+	return linksController;
+}
+
+var _getTimelapseController = function(graph, linksGeometry, pointsGeometry) {
+	if (timelapseController === null) {
+		timelapseController = new TimelapseController(
+			_getGraphModel(graph), 
+			_getLinksController(graph, linksGeometry), 
+			_getPointsController(graph, pointsGeometry));
+	}
+	return timelapseController;
+}
+
+// #endregion
+
 // #region Partite Class
 
 var partites = [];
@@ -81,42 +121,23 @@ class Partite {
 // #endregion
 
 function Graph3D() {
-
-	var graphModel = null;
-	var pointsController = null;
-	var linksController = null;
-	var timelapseController = null;
+	const CAMERA_DISTANCE2NODES_FACTOR = 150;
 
 	chart.getGraphModel = function() {
-		if (graphModel == null) {
-			graphModel = new GraphModel(env.graph);
-		}
-		return graphModel;
-	}
+		return _getGraphModel(env.graph);
+	};
 
 	chart.getPointsController = function() {
-		if (pointsController === null) {
-			pointsController = new PointsController(this.getGraphModel(), env.nodePoints.geometry);
-		}
-		return pointsController;
-	}
+		return _getPointsController(env.graph, env.nodePoints.geometry);
+	};
 
 	chart.getLinksController = function() {
-		if (linksController === null) {
-			linksController = new LinksController(this.getGraphModel(), env.lineMesh.geometry);
-		}
-		return linksController;
-	}
+		return _getLinksController(env.graph, env.lineMesh.geometry);
+	};
 
 	chart.getTimelapseController = function() {
-		if (timelapseController === null) {
-			timelapseController = new TimelapseController(this.getGraphModel(), this.getLinksController(), this.getPointsController());
-		}
-		return timelapseController;
-	}
-
-
-	const CAMERA_DISTANCE2NODES_FACTOR = 150;
+		return _getTimelapseController(env.graph, env.lineMesh.geometry, env.nodePoints.geometry);
+	};
 
 	const env = { // Holds component state
 		initialised: false,
@@ -242,10 +263,6 @@ function Graph3D() {
 		drawNodes(graph);
 		drawEdges(graph);
 
-		graphModel = null;
-		pointsController = null;
-		linksController = null;
-
 		env.camera.lookAt(env.scene.position);
 		env.camera.position.z = Math.cbrt(Object.keys(env.graphData.nodes).length) * CAMERA_DISTANCE2NODES_FACTOR;
 
@@ -368,7 +385,7 @@ function Graph3D() {
 		var lineMesh = new THREE.LineSegments(geometry, newMaterial);
 		env.scene.add( lineMesh );
 		env.lineMesh = lineMesh;
-		chart._paintLinks(new THREE.Color(env.edgeColor));
+		_getLinksController(env.graph, env.lineMesh.geometry).initLinkColors(new THREE.Color(env.edgeColor));
 		console.log(env.renderer.info);
 	}
 
@@ -378,10 +395,7 @@ function Graph3D() {
 	// Component constructor
 	function chart(chartHostDivElement) {
 		env.domNode = chartHostDivElement;
-
 		initStatic();
-		digest();
-
 		return chart;
 	}
 
@@ -389,7 +403,7 @@ function Graph3D() {
 	// #region CompProp
 
 	class CompProp {
-		constructor(name, initVal = null, redigest = true, onChange = newVal => {}) {
+		constructor(name, initVal = null, redigest = false, onChange = newVal => {}) {
 			this.name = name;
 			this.initVal = initVal;
 			this.redigest = redigest;
@@ -443,6 +457,15 @@ function Graph3D() {
 		return this;
 	};
 
+	chart.dataLoadCompletedCallback = function() {
+		graphModel = null;
+		pointsController = null;
+		linksController = null;
+		timelapseController = null;
+		digest();
+		return this;
+	}
+
 	// #endregion
 
 	chart.resetState(); // Set defaults at instantiation
@@ -451,6 +474,7 @@ function Graph3D() {
 	chart.bkgColor = function(hexColor) {
 		env.bkgColor = hexColor;
 		env.renderer.setClearColor(env.bkgColor, 1);
+		return this;
 	}
 
 
@@ -468,88 +492,88 @@ function Graph3D() {
 
 	// #region Buffer updates: Link Colors
 
-	chart.colorLink = function(link, i, hexColor = 0x000000) {
-		this._paintLink(new THREE.Color(hexColor), i);
-		if (link === null && i === -1) {
-			this._refreshLinkPaint();
-		}
-	}
+	// chart.colorLink = function(link, i, hexColor = 0x000000) {
+	// 	this._paintLink(new THREE.Color(hexColor), i);
+	// 	if (link === null && i === -1) {
+	// 		this._refreshLinkPaint();
+	// 	}
+	// }
 
-	chart._paintLinks = function(color = null) {
-		var colors = [];
+	// chart._paintLinks = function(color = null) {
+	// 	var colors = [];
 
-		env.graph.forEachLink(link => {
-			if (color != null && color != undefined) {
-				if (color.getHex() === env.bkgColor) {
-					link.data.revealed = false;
-				}
+	// 	env.graph.forEachLink(link => {
+	// 		if (color != null && color != undefined) {
+	// 			if (color.getHex() === env.bkgColor) {
+	// 				link.data.revealed = false;
+	// 			}
 
-				for (var j = 0; j < pointCount; j += 1) {
-					colors.push(color.r);
-					colors.push(color.g);
-					colors.push(color.b);
-				}
-				return;
-			}
+	// 			for (var j = 0; j < pointCount; j += 1) {
+	// 				colors.push(color.r);
+	// 				colors.push(color.g);
+	// 				colors.push(color.b);
+	// 			}
+	// 			return;
+	// 		}
 
-			var fromNode = env.graph.getNode(link.fromId);
-			var toNode = env.graph.getNode(link.toId);
+	// 		var fromNode = env.graph.getNode(link.fromId);
+	// 		var toNode = env.graph.getNode(link.toId);
 
-			// TODO: fetch color directly from color buffer; do not store on the node itself.
-			var fromColor = fromNode.data.color;
-			var toColor = toNode.data.color;
+	// 		// TODO: fetch color directly from color buffer; do not store on the node itself.
+	// 		var fromColor = fromNode.data.color;
+	// 		var toColor = toNode.data.color;
 
-			var stepColor = {
-				r: (toColor.r - fromColor.r)/pointCount,
-				g: (toColor.g - fromColor.g)/pointCount,
-				b: (toColor.b - fromColor.b)/pointCount
-			};
+	// 		var stepColor = {
+	// 			r: (toColor.r - fromColor.r)/pointCount,
+	// 			g: (toColor.g - fromColor.g)/pointCount,
+	// 			b: (toColor.b - fromColor.b)/pointCount
+	// 		};
 
-			for (var j = 0; j < pointCount; j += 1) {
-				colors.push(fromColor.r + (j * stepColor.r));
-				colors.push(fromColor.g + (j * stepColor.g));
-				colors.push(fromColor.b + (j * stepColor.b));
-			}
-		});
+	// 		for (var j = 0; j < pointCount; j += 1) {
+	// 			colors.push(fromColor.r + (j * stepColor.r));
+	// 			colors.push(fromColor.g + (j * stepColor.g));
+	// 			colors.push(fromColor.b + (j * stepColor.b));
+	// 		}
+	// 	});
 
-		var oldMaterial = env.lineMesh.material;
-		var newMaterial = new THREE.LineBasicMaterial({
-			transparent: true,
-			linewidth: (oldMaterial === null || oldMaterial === undefined) ? 1 : oldMaterial.linewidth,
-			opacity: (oldMaterial === null || oldMaterial === undefined) ? 0.1 : oldMaterial.opacity,
-			vertexColors: true
-		});
+	// 	var oldMaterial = env.lineMesh.material;
+	// 	var newMaterial = new THREE.LineBasicMaterial({
+	// 		transparent: true,
+	// 		linewidth: (oldMaterial === null || oldMaterial === undefined) ? 1 : oldMaterial.linewidth,
+	// 		opacity: (oldMaterial === null || oldMaterial === undefined) ? 0.1 : oldMaterial.opacity,
+	// 		vertexColors: true
+	// 	});
 
-		env.lineMesh.material = newMaterial;
+	// 	env.lineMesh.material = newMaterial;
 
-		var lineGeometry = env.lineMesh.geometry;
-		lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-		lineGeometry.colorsNeedUpdate = true;
-	}
+	// 	var lineGeometry = env.lineMesh.geometry;
+	// 	lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+	// 	lineGeometry.colorsNeedUpdate = true;
+	// }
 
-	chart._paintLink = function(color, i) {
-		if (color.getHex() === env.bkgColor) {
-			link.data.revealed = false;
-		}
-		var lineGeometry = env.lineMesh.geometry;
-		var colors = lineGeometry.getAttribute('color').array;
-		var blockSize = pointCount * 3;
-		var offset = blockSize * i;
-		var rgb = [color.r, color.g, color.b];
+	// chart._paintLink = function(color, i) {
+	// 	if (color.getHex() === env.bkgColor) {
+	// 		link.data.revealed = false;
+	// 	}
+	// 	var lineGeometry = env.lineMesh.geometry;
+	// 	var colors = lineGeometry.getAttribute('color').array;
+	// 	var blockSize = pointCount * 3;
+	// 	var offset = blockSize * i;
+	// 	var rgb = [color.r, color.g, color.b];
 
-		for (var j = 0; j < blockSize; j += 1) {
-			var index = offset + j;
-			colors[index] = rgb[index%3];
-		}
-	}
+	// 	for (var j = 0; j < blockSize; j += 1) {
+	// 		var index = offset + j;
+	// 		colors[index] = rgb[index%3];
+	// 	}
+	// }
 
-	chart._refreshLinkPaint = function() {
-		var lineGeometry = env.lineMesh.geometry;
-		var colors = lineGeometry.getAttribute('color').array;
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-		lineGeometry.colorsNeedUpdate = true;
-	}
+	// chart._refreshLinkPaint = function() {
+	// 	var lineGeometry = env.lineMesh.geometry;
+	// 	var colors = lineGeometry.getAttribute('color').array;
+	// 	// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+	// 	lineGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+	// 	lineGeometry.colorsNeedUpdate = true;
+	// }
 
 	// #endregion
 
@@ -847,7 +871,11 @@ class LinksController {
 		this.togglePartiteVisibility = true;
 	}
 
-	gradientColorLinks(color = null) {
+	gradientColorLinks() {
+		this.initLinkColors();
+	}
+
+	initLinkColors(color = null) {
 		var colors = [];
 		var dis = this;
 		this.graphModel.enumerateLinks(function(i, link) {
@@ -900,9 +928,9 @@ class LinksController {
 	 * @param {THREE.Color} color 
 	 */
 	_colorLink(i, color = null) {
-		var colors = this.linksGeometry.getAttribute('color').array;
 		var blockSize = EdgeBundler.POINT_COUNT * 3;
 		var offset = blockSize * i;
+		var colors = this.linksGeometry.getAttribute('color').array;
 		var rgb = [color.r, color.g, color.b];
 
 		for (var j = 0; j < blockSize; j += 1) {
