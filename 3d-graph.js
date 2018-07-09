@@ -790,7 +790,7 @@ class LinksController {
 		var colors = [];
 		var dis = this;
 		this.graphModel.enumerateLinks(function(i, link) {
-			const pointCount = EdgeBundler.POINT_COUNT;
+			const pointCount = EdgeBundler.POINT_COUNT();
 			if (color != null && color != undefined) {
 				for (var j = 0; j < pointCount; j += 1) {
 					colors.push(color.r);
@@ -839,7 +839,7 @@ class LinksController {
 	 * @param {THREE.Color} color 
 	 */
 	_colorLink(i, color = null) {
-		var blockSize = EdgeBundler.POINT_COUNT * 3;
+		var blockSize = EdgeBundler.POINT_COUNT() * 3;
 		var offset = blockSize * i;
 		var colors = this.linksGeometry.getAttribute('color').array;
 		var rgb = [color.r, color.g, color.b];
@@ -930,7 +930,7 @@ class LinksController {
 		// TODO refactor the switch in drawEdges into a function and call from here
 		var points = EdgeBundler.drawBundledSpline(from, to);
 		var positionsT = [];
-		var blockSize = EdgeBundler.POINT_COUNT * 3;
+		var blockSize = EdgeBundler.POINT_COUNT() * 3;
 		for (var x = 0; x < points.length; x += 1) {
 			var p = points[x];
 			positionsT.push(p.x);
@@ -952,7 +952,7 @@ class LinksController {
 
 	_updateLinkPositions(iLink, newPositions) {
 		var positions = this.linksGeometry.getAttribute('position').array;
-		var blockSize = EdgeBundler.POINT_COUNT * 3;
+		var blockSize = EdgeBundler.POINT_COUNT() * 3;
 		var offset = blockSize * iLink;
 		for (var j = 0; j < blockSize; j += 1) {
 			var index = offset + j;
@@ -1144,8 +1144,12 @@ class EdgeBundler {
 		return new THREE.CatmullRomCurve3( [from, to] );
 	}
 
-	static get POINT_COUNT() {
-		return 15;
+	static set_POINT_COUNT(value) {
+		pointCount = value;
+	}
+
+	static POINT_COUNT() {
+		return pointCount;
 	}
 
 	static getDestinationCentroid(fromNodeId) {

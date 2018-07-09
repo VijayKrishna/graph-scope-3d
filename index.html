@@ -16,6 +16,7 @@
 
 <body>
     <div class="graph-controls">
+        
         <button class="btn dizzy" onClick="roundRobinData()" title="Refresh"></button>
         <button class="btn wave" onClick="cascaseNodes()" title="Cascade"></button>
         <button class="btn paint" onClick="resetColor()" title="Recolor Background"></button>
@@ -26,14 +27,16 @@
         <button class="btn link" onClick="togglePartiteEdges()" title="Toggle Edges Across Levels"></button>
         <button class="btn twocolorpill" onClick="colorNodeWithQuirks()" title="Color the nodes with a twist"></button>
         <button class="btn timer" onClick="timedShow()" title="Replay ;)"></button>
-        <div class="attribution">
-            Git Repository: <a href="https://github.com/VijayKrishna/graph-scope-3d">https://github.com/VijayKrishna/graph-scope-3d</a>
+        <div class="text">
+            Spline Segments #: <input type="range" min="5" max="200" value="14" step="1" onchange="updateSpline(this.value)">
+            <span id="splineSegements">14</span>
         </div>
     </div>
 
     <div id="graph-info-panel" class="graph-info-panel"></div>
     <div id="control-info-panel" class="control-info-panel"><p>Something is terribly wrong. :(</p></div>
     <div id="diagnostic-info-panel" class="diagnostic-info-panel"><p>Loading ...</p></div>
+    <div class="attribution">Git Repository: <a href="https://github.com/VijayKrishna/graph-scope-3d">https://github.com/VijayKrishna/graph-scope-3d</a></div>
     <div id="3d-graph"></div>
 
     <script src="index.js"></script>

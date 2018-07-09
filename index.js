@@ -190,3 +190,11 @@ function timedShow() {
 function clearOverlays() {
 	graphApi.clearOverlays();
 }
+
+function updateSpline(value) {
+	var v = Number.parseInt(value);
+	EdgeBundler.set_POINT_COUNT(v + 1);
+	roundRobinData();
+	var splineSegements = document.getElementById("splineSegements");
+	splineSegements.innerText = v;
+}
