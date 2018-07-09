@@ -53,75 +53,11 @@ var _getTimelapseController = function(graph, linksGeometry, pointsGeometry) {
 
 // #endregion
 
-// #region Partite Class
-
-var partites = [];
-class Partite {
-	constructor(name, memberCount, membershipChecker) {
-		this.name = name;
-		this.memberCount = memberCount;
-		this.members = [];
-		this.membershipChecker = membershipChecker;
-		this.centeroid = new THREE.Vector3(0, 0, 0);
-		this.minBounds = new THREE.Vector2(0, 0);
-		this.maxBounds = new THREE.Vector2(0, 0);
-	}
-
-	isMember(a) {
-		return this.membershipChecker(a);
-	}
-
-	addMember(m, x, y, z) {
-		if (this.memberCount === 0) {
-			this.minBounds.x = this.maxBounds.x = this.centeroid.x = x;
-			this.minBounds.y = this.maxBounds.y = this.centeroid.y = y;
-			this.centeroid.z = z;
-		} else {
-			this.centeroid.x = ((this.centeroid.x * this.memberCount) + x) / (this.memberCount + 1);
-			this.centeroid.y = ((this.centeroid.y * this.memberCount) + y) / (this.memberCount + 1);
-			this.centeroid.z = ((this.centeroid.z * this.memberCount) + z) / (this.memberCount + 1);
-
-			// compute max
-			if (x > this.maxBounds.x) {
-				this.maxBounds.x = x;
-			}
-			if (y > this.maxBounds.y) {
-				this.maxBounds.y = y;
-			}
-
-			// compute min
-			if (x < this.minBounds.x) {
-				this.minBounds.x = x;
-			}
-			if (y < this.minBounds.y) {
-				this.minBounds.y = y;
-			}
-		}
-
-		this.members.push(m);
-		this.memberCount += 1;
-	}
-
-	getCenteroid() {
-		return this.centeroid;
-	}
-
-	static getPartite(nodePosition) { // TODO yeah ... this is ugly. need to fix it.
-		for (var p = 0; p < partites.length; p += 1) {
-			var partite = partites[p];
-			if (partite.isMember(nodePosition)) {
-				return partite;
-			}
-		}
-
-		return null;
-	}
-}
-
-// #endregion
 
 function Graph3D() {
 	const CAMERA_DISTANCE2NODES_FACTOR = 150;
+
+	// #region Graph3D based GraphModels and Controllers
 
 	chart.getGraphModel = function() {
 		return _getGraphModel(env.graph);
@@ -139,6 +75,9 @@ function Graph3D() {
 		return _getTimelapseController(env.graph, env.lineMesh.geometry, env.nodePoints.geometry);
 	};
 
+	// #endregion
+
+
 	const env = { // Holds component state
 		initialised: false,
 		onFrame: () => {},
@@ -152,9 +91,6 @@ function Graph3D() {
 	};
 	envDebug = env;
 
-	function printCamPos() {
-		console.log(env.camera);
-	}
 
 	function initStatic() {
 		// Wipe DOM
@@ -237,6 +173,7 @@ function Graph3D() {
 			requestAnimationFrame(animate);
 		})()
 	}
+
 
 	function digest() {
 		if (!env.initialised) 
@@ -329,10 +266,11 @@ function Graph3D() {
 
 	// #endregion
 
+
 	// #region Draw Edges
 
 	function drawEdges(graph, partiteEdgeKind = 2) {
-		chart.computePartites();
+		Partite.computePartites(env.graph);
 
 		var index = -1;
 		var indicies = [];
@@ -478,6 +416,11 @@ function Graph3D() {
 	}
 
 
+	chart.computePartites = function() {
+		return Partite.computePartites(env.graph);
+	}
+
+
 	// #region Buffer updates: Node Opacity
 
 	chart.changeNodeOpacity = function(nodeData = null, opacity = 1) {
@@ -490,56 +433,12 @@ function Graph3D() {
 	// #endregion
 
 
-	// #region Partites
-
-	chart.computePartites = function() {
-		var membershipCheckerGenerator = function(i) {
-			assert(typeof(i) === "number", "Need number to check against Z co-ordinate");
-			assert(i >= 0, "Need positive number to check against Z co-ordinate");
-
-			return function(a) {
-				assert(a.hasOwnProperty('z'), "Need Z co-ordinate property to check.");
-				return a.z === i;
-			};
-		}
-
-		if (partites.length > 0) {
-			return partites;
-		}
-
-		var knownZcoordinates = [];
-		env.graph.forEachNode( node => {
-			var x = node.data.x;
-			var y = node.data.y;
-			var z = node.data.z;
-			var index = knownZcoordinates.indexOf(z);
-			if (index === -1) {
-				var partite = new Partite("Level " + partites.length, 0, membershipCheckerGenerator(z));
-				partite.addMember(node.data.id, x, y, z);
-				knownZcoordinates.push(z);
-				partites.push(partite);
-			} else {
-				var p = partites[index];
-				p.addMember(node.data.id, x, y, z);
-			}
-		});
-
-		return partites;
-	}
-
-	// #endregion
-
 	// #region Click Node
 
 	function registerNodesWithRaycaster() {
 		if (env.graph != null) {
 			var spheres = [];
 			spheres.push(env.nodePoints);
-			// env.graph.forEachNode(node => {
-			// 	spheres.push(node.data.sphere);
-			// });
-
-
 			var intersects = env.raycaster.intersectObjects(spheres);
 			return intersects;
 		}
@@ -554,8 +453,6 @@ function Graph3D() {
 		if (intersects == null || intersects.length <= 0) {
 			return;
 		}
-
-		console.log(intersects);
 
 		for (var i = 0; i < intersects.length; i += 1) {
 			var object = intersects[0];
@@ -579,9 +476,109 @@ function Graph3D() {
 
 	// #endregion
 
-
 	return chart;
 }
+
+
+var partites = [];
+class Partite {
+	constructor(name, memberCount, membershipChecker) {
+		this.name = name;
+		this.memberCount = memberCount;
+		this.members = [];
+		this.membershipChecker = membershipChecker;
+		this.centeroid = new THREE.Vector3(0, 0, 0);
+		this.minBounds = new THREE.Vector2(0, 0);
+		this.maxBounds = new THREE.Vector2(0, 0);
+	}
+
+	isMember(a) {
+		return this.membershipChecker(a);
+	}
+
+	addMember(m, x, y, z) {
+		if (this.memberCount === 0) {
+			this.minBounds.x = this.maxBounds.x = this.centeroid.x = x;
+			this.minBounds.y = this.maxBounds.y = this.centeroid.y = y;
+			this.centeroid.z = z;
+		} else {
+			this.centeroid.x = ((this.centeroid.x * this.memberCount) + x) / (this.memberCount + 1);
+			this.centeroid.y = ((this.centeroid.y * this.memberCount) + y) / (this.memberCount + 1);
+			this.centeroid.z = ((this.centeroid.z * this.memberCount) + z) / (this.memberCount + 1);
+
+			// compute max
+			if (x > this.maxBounds.x) {
+				this.maxBounds.x = x;
+			}
+			if (y > this.maxBounds.y) {
+				this.maxBounds.y = y;
+			}
+
+			// compute min
+			if (x < this.minBounds.x) {
+				this.minBounds.x = x;
+			}
+			if (y < this.minBounds.y) {
+				this.minBounds.y = y;
+			}
+		}
+
+		this.members.push(m);
+		this.memberCount += 1;
+	}
+
+	getCenteroid() {
+		return this.centeroid;
+	}
+
+	static getPartite(nodePosition) { // TODO yeah ... this is ugly. need to fix it.
+		for (var p = 0; p < partites.length; p += 1) {
+			var partite = partites[p];
+			if (partite.isMember(nodePosition)) {
+				return partite;
+			}
+		}
+
+		return null;
+	}
+
+	static computePartites(graphModel) {
+		var membershipCheckerGenerator = function(i) {
+			assert(typeof(i) === "number", "Need number to check against Z co-ordinate");
+			assert(i >= 0, "Need positive number to check against Z co-ordinate");
+
+			return function(a) {
+				assert(a.hasOwnProperty('z'), "Need Z co-ordinate property to check.");
+				return a.z === i;
+			};
+		}
+
+		if (partites.length > 0) {
+			return partites;
+		}
+
+		var knownZcoordinates = [];
+		graphModel.enumerateNodes( function(nodeData) {
+			var x = nodeData.x;
+			var y = nodeData.y;
+			var z = nodeData.z;
+			var id = nodeData.id;
+			var index = knownZcoordinates.indexOf(z);
+			if (index === -1) {
+				var partite = new Partite("Level " + partites.length, 0, membershipCheckerGenerator(z));
+				partite.addMember(id, x, y, z);
+				knownZcoordinates.push(z);
+				partites.push(partite);
+			} else {
+				var p = partites[index];
+				p.addMember(id, x, y, z);
+			}
+		});
+
+		return partites;
+	}
+}
+
 
 class GraphModel {
 	constructor(_graph) {
@@ -655,6 +652,7 @@ class GraphModel {
 	}
 }
 
+
 class TimelapseController {
 
 	constructor(graphModel, linksController, pointsController) {
@@ -720,6 +718,7 @@ class TimelapseController {
 		}
 	}
 }
+
 
 /**
  * Adds objects to a THREE.Scene.
