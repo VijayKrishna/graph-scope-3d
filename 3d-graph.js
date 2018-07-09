@@ -99,7 +99,7 @@ function Graph3D() {
 		// Add nav info section
 		const navInfo = document.createElement('div');
 		navInfo.classList.add('graph-nav-info');
-		navInfo.innerHTML = "MOVE mouse &amp; press LEFT/A: rotate, MIDDLE/S: zoom, RIGHT/D: pan";
+		navInfo.innerHTML = "MOVE mouse &amp; press LEFT/A: rotate, MIDDLE/S: zoom, RIGHT/D: pan<br/>";
 		env.domNode.appendChild(navInfo);
 
 		// Setup tooltip
@@ -269,8 +269,8 @@ function Graph3D() {
 
 	// #region Draw Edges
 
-	function drawEdges(graph, partiteEdgeKind = 2) {
-		Partite.computePartites(env.graph);
+	function drawEdges(graph) {
+		Partite.computePartites(_getGraphModel(env.graph));
 
 		var index = -1;
 		var indicies = [];
@@ -417,7 +417,7 @@ function Graph3D() {
 
 
 	chart.computePartites = function() {
-		return Partite.computePartites(env.graph);
+		return Partite.computePartites(_getGraphModel());
 	}
 
 
@@ -558,7 +558,7 @@ class Partite {
 		}
 
 		var knownZcoordinates = [];
-		graphModel.enumerateNodes( function(nodeData) {
+		graphModel.enumerateNodes(function(nodeData) {
 			var x = nodeData.x;
 			var y = nodeData.y;
 			var z = nodeData.z;
