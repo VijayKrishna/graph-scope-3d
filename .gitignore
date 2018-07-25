@@ -1,3 +1,4 @@
 # Really big JSON files
 
 data/graph*json
+data/stack*json

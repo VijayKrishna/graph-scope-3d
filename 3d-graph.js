@@ -1,6 +1,6 @@
 var ZERO = new THREE.Vector2(0, 0);
 var envDebug = null;
-var pointCount = 15;
+var pointCount = 2; // TODO: rename the pointCount to segmentCount
 
 
 function assert(condition = true, message = "Unknown Assert") {
@@ -138,7 +138,7 @@ function Graph3D() {
 
 		// Setup camera
 		env.camera = new THREE.PerspectiveCamera();
-		env.camera.far = 30000;
+		env.camera.far = 100000;
 		env.camera.position.z = 2200;
 		env.camera.position.x = -1473;
 		env.camera.position.y = -300;
@@ -827,7 +827,7 @@ class LinksController {
 	colorLinks(colorFunction) {
 		var dis = this;
 		this.graphModel.enumerateLinks(function(i, link) {
-			var color = colorFunction(link);
+			var color = colorFunction(link, dis.graphModel);
 			dis._colorLink(i, new THREE.Color(color));
 		}, function() {
 			dis._refreshLinkPaints();

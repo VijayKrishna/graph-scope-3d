@@ -109,7 +109,7 @@ function recolorEdges() {
 	var colorString2 = (Math.random()*0xFFFFFF<<0).toString(16);
 	var color = parseInt(colorString, 16);
 	var color2 = parseInt(colorString2, 16);
-	graphApi.colorAllEdges(function() {
+	graphApi.colorAllEdges(function(link, graph = null) {
 		if (Math.random() > 0.5) {
 			return color;
 		}
@@ -195,6 +195,6 @@ function updateSpline(value) {
 	var v = Number.parseInt(value);
 	EdgeBundler.set_POINT_COUNT(v + 1);
 	roundRobinData();
-	var splineSegements = document.getElementById("splineSegements");
-	splineSegements.innerText = v;
+	var splineControlPoints = document.getElementById("splineControlPoints");
+	splineControlPoints.innerText = v;
 }
