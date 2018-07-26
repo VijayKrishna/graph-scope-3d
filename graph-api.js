@@ -64,16 +64,13 @@ class GraphApi {
     }
 
     changeOpacityForNodes(opacityFunction, nodeIds) {
-        if (!this.verify("enumerateNodes")
-            || !this.verify("changeNodeOpacity")) {
-            return;
-        }
+        var pointsController = this.visualGraph.getPointsController();
+        pointsController.changeNodeAlphas(opacityFunction, nodeIds);
+    }
 
-        var thisVisualGraph = this.visualGraph;
-        thisVisualGraph.enumerateNodes(function(node) {
-            const opacity = opacityFunction(node);
-            thisVisualGraph.changeNodeOpacity(node, opacity);
-        }, nodeIds);
+    resizeNodes(sizeFunction, nodeIds) {
+        var pointsController = this.visualGraph.getPointsController();
+        pointsController.resizeNodes(sizeFunction, nodeIds);
     }
 
     setClickNodeCallback(callback) {

@@ -224,6 +224,8 @@ function Graph3D() {
 		
 		var positions = [];
 		var colors = [];
+		var alphas = [];
+		var sizes = [];
 		graph.forEachNode(node => {
 			// const nodeMaterial = new THREE.MeshBasicMaterial({ color: env.colorAccessor(node.data)/* || 0xffffaa*/, transparent: false });
 			// nodeMaterial.opacity = 1.0;
@@ -235,25 +237,34 @@ function Graph3D() {
 			colors.push(color.g);
 			colors.push(color.b);
 
+			alphas.push(1.0);
+			sizes.push(70.0);
+
 			positions.push(node.data.x);
 			positions.push(node.data.y);
 			positions.push(node.data.z);
 		});
 
-		var sprite = new THREE.TextureLoader().load( 'disc2.png' );
+		var sprite = new THREE.TextureLoader().load( 'disc.png' );
 		var spheresGeometry = new THREE.BufferGeometry();
 		spheresGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
 		spheresGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+		spheresGeometry.addAttribute( 'alpha', new THREE.Float32BufferAttribute( alphas, 1 ) );
+		spheresGeometry.addAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ) );
 		spheresGeometry.computeBoundingBox(); // TODO: check why we need this. Seems useless.
 
-
-		var nodeMaterial = new THREE.PointsMaterial( { 
-			size: 70, 
-			map: sprite,
-			transparent: true,
-			alphaTest: 0.05,
-			vertexColors: THREE.VertexColors 
-		} );
+		var nodeMaterial = new THREE.ShaderMaterial( {
+			uniforms: {
+				color:   { value: new THREE.Color( 0xffffff ) },
+				texture: { value: sprite }
+			},
+			vertexShader:   document.getElementById( 'vertexshader' ).textContent,
+			fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+			blending:       THREE.NormalBlending,
+			depthTest:      false,
+			transparent:    true,
+			vertexColors:   true
+		});
 
 		const nodePoints = new THREE.Points(
 			spheresGeometry,
@@ -1030,6 +1041,60 @@ class PointsController { // ViewController
 		this.pointsGeometry.colorsNeedUpdate = true; // TODO: figure out why we need this call. Seems like we can do without it.
 	}
 
+	// #endregion
+
+	// #region node alpha
+
+	changeNodeAlphas(alphaFunction, nodeIds = null) {
+		var thisController = this;
+		this.graphModel.enumerateNodes(function(nodeData) {
+			var alpha = alphaFunction(nodeData);
+			thisController.changeNodeAlpha(nodeData, alpha);
+		}, function() {
+			thisController._refreshNodeAlphas();
+		}, nodeIds);
+	}
+
+	changeNodeAlpha(nodeData, opacity = 1.0) {
+		const offset = nodeData.id;
+
+		var alpahs = this.pointsGeometry.getAttribute('alpha').array;
+		alpahs[offset] = opacity;
+	}
+
+	_refreshNodeAlphas() {
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		var alphas = this.pointsGeometry.getAttribute('alpha').array;
+		this.pointsGeometry.addAttribute( 'alpha', new THREE.Float32BufferAttribute( alphas, 1 ) );
+	}
+
+	// #endregion
+
+	// #region node size
+
+	resizeNodes(sizeFunction, nodeIds = null) {
+		var thisController = this;
+		this.graphModel.enumerateNodes(function(nodeData) {
+			var size = sizeFunction(nodeData);
+			thisController.resizeNode(nodeData, size);
+		}, function() {
+			thisController._refreshNodeSizes();
+		}, nodeIds);
+	}
+
+	resizeNode(nodeData, size = 70.0) {
+		const offset = nodeData.id;
+
+		var sizes = this.pointsGeometry.getAttribute('size').array;
+		sizes[offset] = size;
+	}
+
+	_refreshNodeSizes() {
+		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
+		var sizes = this.pointsGeometry.getAttribute('size').array;
+		this.pointsGeometry.addAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ) );
+	}
+	
 	// #endregion
 
 	// #region Visibility (via Position)

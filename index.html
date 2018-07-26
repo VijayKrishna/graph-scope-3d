@@ -12,9 +12,56 @@
 
     <link rel="stylesheet" href="3d-graph.css">
     <link rel="stylesheet" href="style.css">
+
 </head>
 
 <body>
+
+        <script type="x-shader/x-vertex" id="vertexshader">
+
+            attribute float alpha;
+
+            attribute float size;
+
+            varying vec3 vColor;
+
+            varying float vAlpha;
+
+            void main() {
+        
+                vAlpha = alpha;
+
+                vColor = color;
+        
+                vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+        
+                gl_PointSize = size * 1.0 * ( 300.0 / -mvPosition.z );
+        
+                gl_Position = projectionMatrix * mvPosition;
+        
+            }
+        
+        </script>
+        
+        <script type="x-shader/x-fragment" id="fragmentshader">
+        
+            varying vec3 vColor;
+        
+            varying float vAlpha;
+
+            uniform sampler2D texture;
+        
+            void main() {
+        
+                gl_FragColor = vec4( vColor, vAlpha );
+        
+                gl_FragColor = gl_FragColor * texture2D( texture, gl_PointCoord );
+        
+            }
+        
+        </script>
+
+
     <div class="graph-controls">
         
         <button class="btn dizzy" onClick="roundRobinData()" title="Refresh"></button>
@@ -28,8 +75,16 @@
         <button class="btn twocolorpill" onClick="colorNodeWithQuirks()" title="Color the nodes with a twist"></button>
         <button class="btn timer" onClick="timedShow()" title="Replay ;)"></button>
         <div class="text">
-            # of Spline Control Points: <input type="range" min="1" max="200" value="1" step="1" onchange="updateSpline(this.value)">
+            Spline Points: <input type="range" min="1" max="200" value="1" step="1" onchange="updateSpline(this.value)">
             <span id="splineControlPoints">1</span>
+        </div>
+        <div class="text">
+            Nodes Opacity: <input type="range" min="0.0" max="1.0" value="1.0" step="0.1" onchange="updateAlphas(this.value)">
+            <span id="nodeAlphas">1.0</span>
+        </div>
+        <div class="text">
+            Nodes Sizes: <input type="range" min="0.0" max="200.0" value="70.0" step="10.0" onchange="updateSizes(this.value)">
+            <span id="nodeSizes">70.0</span>
         </div>
     </div>
 
@@ -38,7 +93,6 @@
     <div id="diagnostic-info-panel" class="diagnostic-info-panel"><p>Loading ...</p></div>
     <div class="attribution">Git Repository: <a href="https://github.com/VijayKrishna/graph-scope-3d">https://github.com/VijayKrishna/graph-scope-3d</a></div>
     <div id="3d-graph"></div>
-
     <script src="index.js"></script>
     
 </body>

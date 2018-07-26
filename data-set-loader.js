@@ -59,5 +59,5 @@ function getGraphDataSets() {
         return data;
     }
 
-    return [dataFuntion(p[p.length - 2])];
+    return [dataFuntion(p[p.length - 1])];
 }

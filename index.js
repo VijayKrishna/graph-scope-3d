@@ -198,3 +198,25 @@ function updateSpline(value) {
 	var splineControlPoints = document.getElementById("splineControlPoints");
 	splineControlPoints.innerText = v;
 }
+
+function updateAlphas(value) {
+	var alphaValue = Number.parseFloat(value);
+
+	graphApi.changeOpacityForNodes(function() {
+		return alphaValue;
+	});
+
+	var nodeAlphas = document.getElementById("nodeAlphas");
+	nodeAlphas.innerText = alphaValue;
+}
+
+function updateSizes(value) {
+	var sizeValue = Number.parseFloat(value);
+
+	graphApi.resizeNodes(function() {
+		return sizeValue;
+	});
+
+	var nodesSizes = document.getElementById("nodeSizes");
+	nodesSizes.innerText = sizeValue;
+}
