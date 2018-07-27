@@ -51,6 +51,11 @@ class GraphApi {
         linksController.colorLinks(colorFunction);
     }
 
+    refreshEdges() {
+        var linksController = this.visualGraph.getLinksController();
+        linksController.refreshLinkGeometries();
+    }
+
     /*
     nodeSubset: list of nodes ids (integer list); comes from a JSON data file
     colorFunction: (integer => {}) colors the nodes; 

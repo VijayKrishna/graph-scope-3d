@@ -283,58 +283,20 @@ function Graph3D() {
 	function drawEdges(graph) {
 		Partite.computePartites(_getGraphModel(env.graph));
 
-		var index = -1;
-		var indicies = [];
-		var positions = [];
+		var geometry = new THREE.BufferGeometry();
+		var linksController = _getLinksController(graph, geometry);
+		linksController.refreshLinkGeometries(env.edgeColor);
+
 		var newMaterial = new THREE.LineBasicMaterial({
 			transparent: true,
 			linewidth: 1,
 			opacity: 0.1,
 			vertexColors: true
 		});
-		var geometry;
 
-		var li = 0;
-		graph.forEachLink(link => {
-			link.data = {};
-			link.data.id = li;
-			li += 1;
-
-			var fromNode = env.graph.getNode(link.fromId);
-			var toNode = env.graph.getNode(link.toId);
-
-			var from = new THREE.Vector3( 
-				fromNode.data.x, 
-				fromNode.data.y, 
-				fromNode.data.z );
-
-			var to = new THREE.Vector3( 
-				toNode.data.x, 
-				toNode.data.y, 
-				toNode.data.z );
-
-			var points = EdgeBundler.drawBundledSpline(from, to);
-			positions.push(points[0].x, points[0].y, points[0].z);
-			index += 1;
-
-			for (var i = 1; i < points.length; i += 1) {
-				var p = points[i];
-				positions.push(p.x);
-				positions.push(p.y);
-				positions.push(p.z);
-				index +=1;
-				indicies.push(index - 1, index);
-			}
-		});
-
-		geometry = new THREE.BufferGeometry();
-		var bufferedPositions = new THREE.Float32BufferAttribute( positions, 3 );
-		geometry.addAttribute( 'position', bufferedPositions);
-		geometry.setIndex(indicies);
 		var lineMesh = new THREE.LineSegments(geometry, newMaterial);
 		env.scene.add( lineMesh );
 		env.lineMesh = lineMesh;
-		_getLinksController(env.graph, env.lineMesh.geometry).initLinkColors(new THREE.Color(env.edgeColor));
 		console.log(env.renderer.info);
 	}
 
@@ -791,6 +753,39 @@ class LinksController {
 		this.linksGeometry = _linksGeometry;
 		this.toggleVisibility = true;
 		this.togglePartiteVisibility = true;
+	}
+
+	refreshLinkGeometries(edgeColor = null) {
+		var index = -1;
+		var indicies = [];
+		var positions = [];
+		var dis = this;
+
+		this.graphModel.enumerateLinks(function(i, link) {
+			var fromNode = dis.graphModel.getNode(link.fromId);
+			var toNode = dis.graphModel.getNode(link.toId);
+
+			var from = new THREE.Vector3(fromNode.data.x, fromNode.data.y, fromNode.data.z);
+			var to = new THREE.Vector3(toNode.data.x, toNode.data.y, toNode.data.z );
+
+			var points = EdgeBundler.drawBundledSpline(from, to);
+			positions.push(points[0].x, points[0].y, points[0].z);
+			index += 1;
+
+			for (var i = 1; i < points.length; i += 1) {
+				var p = points[i];
+				positions.push(p.x);
+				positions.push(p.y);
+				positions.push(p.z);
+				index += 1;
+				indicies.push(index - 1, index);
+			}
+		}, function () {
+			dis.linksGeometry.addAttribute('position', new THREE.Float32BufferAttribute( positions, 3 ));
+			dis.linksGeometry.setIndex(indicies);
+			// TODO: refactor this constant color into some static state
+			dis.initLinkColors(edgeColor == null ? new THREE.Color(0x0077FF) : new THREE.Color(edgeColor));
+		});
 	}
 
 	gradientColorLinks() {

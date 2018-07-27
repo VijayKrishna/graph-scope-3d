@@ -194,7 +194,7 @@ function clearOverlays() {
 function updateSpline(value) {
 	var v = Number.parseInt(value);
 	EdgeBundler.set_POINT_COUNT(v + 1);
-	roundRobinData();
+	graphApi.refreshEdges();
 	var splineControlPoints = document.getElementById("splineControlPoints");
 	splineControlPoints.innerText = v;
 }
