@@ -857,10 +857,7 @@ class LinksController {
 	}
 
 	_refreshLinkPaints() {
-		var colors = this.linksGeometry.getAttribute('color').array;
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		this.linksGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-		this.linksGeometry.colorsNeedUpdate = true;
+		this.linksGeometry.attributes.color.needsUpdate = true;
 	}
 
 
@@ -967,9 +964,7 @@ class LinksController {
 	}
 
 	_refreshLinkPostions() {
-		var position = this.linksGeometry.getAttribute('position').array;
-		// can we avoid creating a new THREE.Float32BufferAttribute() here?
-		this.linksGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( position, 3 ) );
+		this.linksGeometry.attributes.position.needsUpdate = true;
 	}
 }
 
@@ -1030,10 +1025,7 @@ class PointsController { // ViewController
 	}
 
 	_refreshNodePaint() {
-		var colors = this.pointsGeometry.getAttribute('color').array;
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		this.pointsGeometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
-		this.pointsGeometry.colorsNeedUpdate = true; // TODO: figure out why we need this call. Seems like we can do without it.
+		this.pointsGeometry.attributes.color.needsUpdate = true;
 	}
 
 	// #endregion
@@ -1058,9 +1050,7 @@ class PointsController { // ViewController
 	}
 
 	_refreshNodeAlphas() {
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		var alphas = this.pointsGeometry.getAttribute('alpha').array;
-		this.pointsGeometry.addAttribute( 'alpha', new THREE.Float32BufferAttribute( alphas, 1 ) );
+		this.pointsGeometry.attributes.alpha.needsUpdate = true;
 	}
 
 	// #endregion
@@ -1085,9 +1075,7 @@ class PointsController { // ViewController
 	}
 
 	_refreshNodeSizes() {
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		var sizes = this.pointsGeometry.getAttribute('size').array;
-		this.pointsGeometry.addAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ) );
+		this.pointsGeometry.attributes.size.needsUpdate = true;
 	}
 	
 	// #endregion
@@ -1159,9 +1147,7 @@ class PointsController { // ViewController
 	}
 
 	_refreshPointPostions() {
-		var positions = this.pointsGeometry.getAttribute('position').array;
-		// TODO: can we avoid creating a new THREE.Float32BufferAttribute() here?
-		this.pointsGeometry.addAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
+		this.pointsGeometry.attributes.position.needsUpdate = true;
 	}
 
 	// #endregion
